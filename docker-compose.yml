@@ -1,0 +1,34 @@
+# ==============================================================================
+# OPSIONAL: Docker Compose untuk PostgreSQL
+# ==============================================================================
+# File ini bersifat OPSIONAL. Jika Anda sudah menginstal PostgreSQL langsung di
+# komputer lokal (host), Anda TIDAK PERLU menjalankan file ini. Cukup buat
+# database `marketplace` di PostgreSQL lokal Anda.
+#
+# Jika Anda lebih memilih menggunakan Docker untuk service PostgreSQL:
+# Jalankan: docker compose up -d
+# Matikan:  docker compose down
+# ==============================================================================
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: marketplace_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-marketplace}
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_DATABASE:-marketplace}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
+    driver: local

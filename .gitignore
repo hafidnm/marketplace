@@ -1,0 +1,18 @@
+# Environment files
+.env
+.env.backup
+.env.production
+*.env.local
+
+# Dependency & build directories
+node_modules/
+vendor/
+dist/
+
+# OS / Editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+CLAUDE.md
