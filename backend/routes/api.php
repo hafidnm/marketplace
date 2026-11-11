@@ -29,6 +29,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // Listing Mutation Endpoints
     Route::post('/listings', [ListingController::class, 'store']);
     Route::put('/listings/{id}', [ListingController::class, 'update']);
+    Route::post('/listings/{id}/update', [ListingController::class, 'update']); // browser fallback (no PUT support)
     Route::delete('/listings/{id}', [ListingController::class, 'destroy']);
     Route::patch('/listings/{id}/status', [ListingController::class, 'updateStatus']);
 });
