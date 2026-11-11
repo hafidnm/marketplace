@@ -23,8 +23,8 @@ komunitas.
 - Storage lokal: Laravel `Storage::disk('public')`.
 
 Catatan sumber kebenaran: `backend/composer.json` saat ini mendeklarasikan
-`php: ^8.3` dan `laravel/framework: ^13.17`. Dokumen lain menyebut Laravel 11
-atau PHP 8.2+, tetapi setup bersih harus mengikuti constraint Composer aktif.
+`php: ^8.3` dan `laravel/framework: ^13.17`; setup bersih harus mengikuti
+constraint Composer aktif.
 
 ## Struktur Project
 
@@ -131,6 +131,9 @@ Akun demo dari `UserSeeder`:
 Email: bambang@marketplace.test
 Password: password123
 ```
+
+Akun demo ini hanya untuk development lokal. Jangan gunakan password tersebut
+di production.
 
 ## Konfigurasi Environment
 

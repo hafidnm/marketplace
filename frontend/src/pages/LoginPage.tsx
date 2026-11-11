@@ -55,13 +55,6 @@ export const LoginPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Demo Account Hint */}
-        <div className="p-3 bg-brand-50 rounded-xl border border-brand-200 text-xs text-brand-900 space-y-1">
-          <p className="font-bold">Akun Demo Pengujian:</p>
-          <p>Email: <code className="bg-brand-100 px-1 py-0.5 rounded">bambang@marketplace.test</code></p>
-          <p>Password: <code className="bg-brand-100 px-1 py-0.5 rounded">password123</code></p>
-        </div>
-
         {errorMessage && (
           <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2.5 text-rose-800 text-sm">
             <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />

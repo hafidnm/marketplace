@@ -8,7 +8,8 @@ dari local/single instance menuju sistem yang mampu melayani 500 RPS.
 | Komponen | Status |
 |---|---|
 | SPA auth, Policy, Form Request, rate limit, index DB, upload lokal | Sudah diimplementasi |
-| CDN, S3/object storage, Redis, read replica, queue worker, autoscaling | Rancangan |
+| CDN, S3/object storage, Redis, read replica, queue worker, autoscaling, email notification | Rancangan |
+| `pg_trgm` + GIN index untuk search | Rancangan; saat ini search memakai `ILIKE` |
 
 ## Asumsi dan Hitungan Kapasitas
 
@@ -77,6 +78,10 @@ flowchart LR
         Queue
     end
 ```
+
+Queue worker dan komponen email notification yang direncanakan belum menjadi
+dependency runtime pada implementasi saat ini; keduanya ditampilkan sebagai
+target evolusi arsitektur.
 
 Hanya CDN/WAF dan ALB yang menerima traffic publik. Container, database,
 Redis, queue, dan worker berada di private subnet tanpa public IP. Object

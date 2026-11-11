@@ -6,7 +6,6 @@ import {
   Tag,
   Calendar,
   MessageCircle,
-  ShieldCheck,
   Edit,
   User as UserIcon,
 } from 'lucide-react';
@@ -321,11 +320,6 @@ export const ListingDetailPage: React.FC = () => {
                     <span>{listing.seller.location || 'Indonesia'}</span>
                   </p>
                 </div>
-              </div>
-
-              <div className="pt-3 border-t border-slate-100 flex items-center gap-2 text-xs text-emerald-700 font-medium">
-                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Anggota Komunitas Terverifikasi</span>
               </div>
             </div>
           )}

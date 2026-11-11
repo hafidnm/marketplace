@@ -9,7 +9,8 @@ Angka kapasitas adalah baseline desain, bukan klaim kapasitas environment lokal.
 |---|---|
 | SPA auth, Policy, Form Request, auth/catalog rate limit, index DB | Sudah diimplementasi |
 | Upload foto | Lokal melalui `Storage::disk('public')` (dummy), target: presigned URL ke S3 |
-| Redis, CDN, queue resize, read replica | Rancangan |
+| Redis, CDN, queue resize, read replica, email notification | Rancangan |
+| `pg_trgm` + GIN index untuk search | Rancangan; saat ini search memakai `ILIKE` |
 | Pagination | Saat ini offset pagination melalui Eloquent `paginate()`; cursor pagination adalah rencana |
 
 ## Asumsi dan Hitungan Kapasitas
@@ -90,12 +91,15 @@ flowchart LR
     React -->|"external contact link"| WhatsApp
 ```
 
+Worker dan Email provider pada diagram adalah komponen **rencana**; implementasi
+saat ini belum menjalankan queue resize maupun email notification.
+
 ### Technology Stack
 
 | Layer | Teknologi | Peran |
 |---|---|---|
 | UI | React, Vite, TypeScript, Tailwind, React Router | SPA katalog dan form |
-| API | Laravel 11, PHP 8.2+ | REST API, validation, resources |
+| API | Laravel `^13.17`, PHP `^8.3` | REST API, validation, resources |
 | Auth | Laravel Sanctum SPA cookie/session | Session web dan CSRF |
 | Authorization | Laravel Policy | Ownership listing |
 | Database | PostgreSQL | Data transaksi dan katalog |
@@ -189,14 +193,17 @@ atas.
   filter dan sort katalog.
 - B-tree pada `listings(user_id, created_at)` untuk profil penjual.
 - Index `listing_images(listing_id, sort_order)` untuk galeri.
-- `pg_trgm` dan GIN trigram index pada kolom `name` dan `description` untuk
-  search substring. Query search tetap dibatasi status dan pagination.
+- Implementasi saat ini memakai PostgreSQL `ILIKE` pada `name` dan
+  `description`; `pg_trgm` dan GIN trigram index belum dibuat oleh migration.
+  Ini adalah rencana optimasi yang layak diterapkan saat latensi search mulai
+  meningkat, setelah pola query dan metrik p95 terukur.
 - Query memakai eager loading `category`, `user`, dan `images` untuk mencegah N+1.
 
-Keputusan: PostgreSQL `pg_trgm` dipilih sebelum search engine khusus. Alternatifnya
-Elasticsearch/OpenSearch. PostgreSQL lebih sederhana dan cukup untuk katalog MVP,
-sedangkan search engine memberi relevance dan scale lebih besar dengan biaya
-operasional serta sinkronisasi tambahan.
+Keputusan: PostgreSQL `ILIKE` dipakai untuk MVP, dengan `pg_trgm` + GIN sebagai
+rencana optimasi saat latensi search naik. Alternatif berikutnya adalah
+Elasticsearch/OpenSearch. PostgreSQL lebih sederhana, sedangkan search engine
+memberi relevance dan scale lebih besar dengan biaya operasional serta
+sinkronisasi tambahan.
 
 ### Pagination
 
