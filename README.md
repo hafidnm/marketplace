@@ -19,6 +19,16 @@ Mini project marketplace barang bekas (secondhand) untuk komunitas bapak-bapak.
 └── README.md
 ```
 
+## Dokumentasi
+
+- [Arsitektur aplikasi](docs/architecture.md) - user flow, komponen, sequence,
+  caching, indexing, security, dan keputusan desain.
+- [Arsitektur infrastruktur](docs/infrastructure.md) - security boundary,
+  scaling, reliability, backup, monitoring, evolusi, dan estimasi biaya.
+- [Dokumentasi API](docs/api.md)
+- [Database](docs/database.md)
+- [ADR](docs/adr.md)
+
 ## Cara Menjalankan Project
 
 ### 1. Database (Pilih salah satu cara)

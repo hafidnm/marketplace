@@ -6,7 +6,11 @@ Dokumen ini berisi spesifikasi lengkap REST API untuk platform Marketplace Secon
 - **Default Headers**:
   - `Accept: application/json`
   - `Content-Type: application/json` (kecuali upload multipart)
-  - `Authorization: Bearer <TOKEN>` (untuk endpoint terproteksi)
+  - Cookie session dan `X-XSRF-TOKEN` dikelola browser (tidak ada Bearer token)
+
+Alur SPA: panggil `GET /sanctum/csrf-cookie` terlebih dahulu, lalu kirim request
+dengan credentials/cookie. Axios frontend dikonfigurasi dengan
+`withCredentials: true` dan `withXSRFToken: true`.
 
 ---
 
@@ -48,8 +52,8 @@ Sesuai arsitektur, seluruh error respons diformat seragam dengan objek `error`:
 | Method | Endpoint | Auth | Deskripsi |
 |---|---|---|---|
 | `POST` | `/api/register` | Publik | Registrasi pengguna baru |
-| `POST` | `/api/login` | Publik | Login & peroleh Sanctum token / sesi |
-| `POST` | `/api/logout` | Sanctum | Logout & revocasi token aktif |
+| `POST` | `/api/login` | Publik | Login dan membuat session Sanctum SPA |
+| `POST` | `/api/logout` | Sanctum | Logout dan invalidate session |
 | `GET` | `/api/me` | Sanctum | Mendapatkan data profil pengguna yang login |
 | `GET` | `/api/categories` | Publik | Daftar kategori barang & jumlah listing |
 | `GET` | `/api/listings` | Publik | Katalog barang (search, filter, pagination) |
@@ -96,14 +100,14 @@ curl -X POST http://localhost:8000/api/login \
 ```bash
 curl -X GET http://localhost:8000/api/me \
   -H "Accept: application/json" \
-  -H "Authorization: Bearer <TOKEN>"
+
 ```
 
 #### 4. Logout (`POST /api/logout`)
 ```bash
 curl -X POST http://localhost:8000/api/logout \
   -H "Accept: application/json" \
-  -H "Authorization: Bearer <TOKEN>"
+
 ```
 
 ---
@@ -153,7 +157,7 @@ Menggunakan format `multipart/form-data` dengan maksimal 5 gambar (maks 2MB per 
 ```bash
 curl -X POST http://localhost:8000/api/listings \
   -H "Accept: application/json" \
-  -H "Authorization: Bearer <TOKEN>" \
+
   -F "category_id=1" \
   -F "name=Gergaji Mesin Jigsaw Makita M4301B" \
   -F "description=Mulus terawat, pisau gergaji tajam bonus 3 pcs, pemakaian pribadi." \
@@ -170,7 +174,7 @@ Hanya pemilik barang yang diizinkan mengedit (diverifikasi via `ListingPolicy`).
 curl -X PUT http://localhost:8000/api/listings/1 \
   -H "Accept: application/json" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <TOKEN>" \
+
   -d '{
     "name": "Bor Cordless Bosch GSB 120-LI (Nego Tipis)",
     "price": 700000,
@@ -184,7 +188,7 @@ Mengubah status menjadi `AVAILABLE` atau `SOLD` (hanya pemilik barang).
 curl -X PATCH http://localhost:8000/api/listings/1/status \
   -H "Accept: application/json" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <TOKEN>" \
+
   -d '{
     "status": "SOLD"
   }'
@@ -195,5 +199,5 @@ Menghapus barang dari database serta menghapus file gambar fisiknya dari storage
 ```bash
 curl -X DELETE http://localhost:8000/api/listings/1 \
   -H "Accept: application/json" \
-  -H "Authorization: Bearer <TOKEN>"
+
 ```

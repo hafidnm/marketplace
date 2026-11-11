@@ -32,24 +32,25 @@ class AuthController extends Controller
             'location' => $validated['location'] ?? null,
         ]);
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        Auth::guard('web')->login($user);
+        $request->session()->regenerate();
 
         return $this->successResponse([
             'user' => new UserResource($user),
-            'token' => $token,
         ], 'Registrasi akun berhasil.', 201);
     }
 
     /**
-     * Login user with credentials and return token & session.
+     * Login user with credentials and establish a session.
      */
     public function login(LoginRequest $request): JsonResponse
     {
         $validated = $request->validated();
 
-        $user = User::where('email', $validated['email'])->first();
-
-        if (!$user || !Hash::check($validated['password'], $user->password)) {
+        if (!Auth::guard('web')->attempt([
+            'email' => $validated['email'],
+            'password' => $validated['password'],
+        ])) {
             return $this->errorResponse(
                 'Email atau password yang Anda masukkan salah.',
                 'INVALID_CREDENTIALS',
@@ -57,32 +58,22 @@ class AuthController extends Controller
             );
         }
 
-        // Delete existing tokens if desired or keep multi-device
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $request->session()->regenerate();
+        $user = Auth::guard('web')->user();
 
         return $this->successResponse([
             'user' => new UserResource($user),
-            'token' => $token,
         ], 'Login berhasil.');
     }
 
     /**
-     * Logout user and revoke tokens / invalidate session.
+     * Logout user and invalidate the session.
      */
     public function logout(Request $request): JsonResponse
     {
-        $user = $request->user();
-
-        if ($user) {
-            // Revoke current token if using Sanctum personal access token
-            $user->currentAccessToken()?->delete();
-        }
-
-        if (Auth::guard('web')->check()) {
-            Auth::guard('web')->logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
-        }
+        Auth::guard('web')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
         return $this->successResponse(null, 'Logout berhasil.');
     }

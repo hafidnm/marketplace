@@ -1,213 +1,220 @@
-# Infrastructure – Marketplace Bapak-Bapak
+# Arsitektur Infrastruktur Marketplace Bapak-Bapak
 
-Dokumen ini menjelaskan infrastruktur yang digunakan untuk development lokal, arsitektur production yang direkomendasikan, dan konfigurasi environment.
+Dokumen ini mendeskripsikan target deployment cloud multi-AZ dan jalur evolusi
+dari local/single instance menuju sistem yang mampu melayani 500 RPS.
 
----
+## Status Implementasi
 
-## 1. Environment: Development Lokal
+| Komponen | Status |
+|---|---|
+| SPA auth, Policy, Form Request, rate limit, index DB, upload lokal | Sudah diimplementasi |
+| CDN, S3/object storage, Redis, read replica, queue worker, autoscaling | Rancangan |
 
-```mermaid
-flowchart TD
-    Dev["Developer\nWindows 10/11"]
-    FE["Frontend Dev Server\nVite @ localhost:5173\n(npm run dev)"]
-    BE["Backend Dev Server\nPHP Artisan @ localhost:8000\n(php artisan serve)"]
-    PG["PostgreSQL 17.4\nlocalhost:5432\n(service lokal)"]
-    ST["File Storage\nbackend/storage/app/public/\n(symlink: public/storage)"]
+## Asumsi dan Hitungan Kapasitas
 
-    Dev -->|"Browser"| FE
-    FE -->|"Axios API Call\n/api/*"| BE
-    BE -->|"Eloquent ORM"| PG
-    BE -->|"Storage::disk"| ST
-```
+| Asumsi | Nilai |
+|---|---:|
+| DAU | 100.000 |
+| Request per user per hari | 30 |
+| RPS rata-rata | 100.000 x 30 / 86.400 = ~35 |
+| Peak factor | 10x |
+| Peak RPS | ~350 |
+| Target desain | 500 RPS |
+| Rasio read:write | 95:5 |
+| Listing baru per hari | 100.000 x 2% = 2.000 |
+| Foto per listing | 4 |
+| Foto per hari | 2.000 x 4 = 8.000 |
+| Ukuran foto rata-rata | 330 KB |
+| Pertumbuhan foto | 8.000 x 330 KB = ~2,6 GB/hari, ~1 TB/tahun |
+| Bandwidth gambar (egress/download) | ~3 MB/user/hari = ~300 GB/hari, sekitar 9 TB/bulan, dilayani CDN |
+| Peak photo bandwidth | ~300 Mbps, melalui CDN |
 
-### Services yang Diperlukan (Lokal)
+Upload foto sebenarnya sekitar 2,6 GB/hari berdasarkan listing baru dan ukuran
+foto. Egress gambar sekitar 300 GB/hari dan wajib dilayani CDN agar bandwidth
+origin tidak mengikuti seluruh traffic gambar.
 
-| Service | URL / Port | Start Command |
-|---------|-----------|--------------|
-| PostgreSQL | `localhost:5432` | Otomatis via Windows Service |
-| Laravel Backend | `http://localhost:8000` | `cd backend && php artisan serve` |
-| Vite Frontend | `http://localhost:5173` | `cd frontend && npm run dev` |
-
-### Docker (Opsional)
-
-`docker-compose.yml` di root project menyediakan PostgreSQL container sebagai alternatif instalasi lokal:
-
-```bash
-# Jalankan hanya jika tidak punya PostgreSQL lokal
-docker compose up -d postgres
-```
-
-> **Catatan**: Docker **tidak wajib** untuk development. PostgreSQL lokal (terinstall langsung) adalah cara utama.
-
----
-
-## 2. Environment: Production (Rekomendasi)
+## 1. Diagram Infrastruktur dan Security Boundary
 
 ```mermaid
 flowchart LR
-    subgraph CDN["CDN / Nginx"]
-        STATIC["Static Files\n(JS, CSS, Assets)"]
+    User["Web browser"]
+    DNS["DNS"]
+    CDN["CDN and WAF"]
+    ALB["Application load balancer"]
+    App["Laravel API containers"]
+    Worker["Queue worker containers"]
+    RDS["RDS PostgreSQL primary"]
+    Replica["RDS read replica"]
+    Redis["Managed Redis Multi-AZ"]
+    FrontendBucket["Private frontend asset bucket"]
+    PhotoBucket["Private photo bucket"]
+    Queue["Managed queue"]
+    Monitor["Monitoring and logging"]
+
+    User -->|"HTTPS"| DNS
+    DNS -->|"edge routing"| CDN
+    CDN -->|"dynamic requests"| ALB
+    CDN -->|"cached frontend assets"| FrontendBucket
+    CDN -->|"cached photos"| PhotoBucket
+    ALB -->|"private service route"| App
+    App -->|"read and write"| RDS
+    App -->|"read heavy queries"| Replica
+    App -->|"cache and session"| Redis
+    App -->|"dispatch jobs"| Queue
+    Queue -->|"consume jobs"| Worker
+    Worker -->|"resize images"| PhotoBucket
+    App -->|"metrics and logs"| Monitor
+    Worker -->|"metrics and logs"| Monitor
+    subgraph PublicBoundary["Public subnet boundary"]
+        ALB
     end
-
-    subgraph APP["App Server (VPS/Cloud)"]
-        NGINX["Nginx Reverse Proxy"]
-        PHP["PHP-FPM 8.3\nLaravel API"]
-        STORAGE["File Storage\n(local disk / S3)"]
+    subgraph PrivateBoundary["Private subnet boundary"]
+        App
+        Worker
+        RDS
+        Replica
+        Redis
+        Queue
     end
-
-    subgraph DATA["Database Server"]
-        PG["PostgreSQL 14+"]
-    end
-
-    USER["End User\nBrowser"] -->|"HTTPS"| NGINX
-    NGINX -->|"SPA static files"| STATIC
-    NGINX -->|"API requests /api/*"| PHP
-    PHP -->|"PDO / Eloquent"| PG
-    PHP -->|"Storage::put()"| STORAGE
-    STORAGE -->|"File URL"| USER
 ```
 
-### Spesifikasi Server Minimum (Production)
+Hanya CDN/WAF dan ALB yang menerima traffic publik. Container, database,
+Redis, queue, dan worker berada di private subnet tanpa public IP. Object
+storage bucket private dan diakses melalui VPC endpoint, workload role, atau
+signed URL. Security group hanya mengizinkan ALB ke app, app ke database dan
+Redis, serta app atau worker ke queue dan object storage.
 
-| Komponen | Minimum | Rekomendasi |
-|----------|---------|-------------|
-| CPU | 1 vCPU | 2 vCPU |
-| RAM | 1 GB | 2 GB |
-| Storage | 20 GB SSD | 50 GB SSD |
-| OS | Ubuntu 22.04 LTS | Ubuntu 22.04 LTS |
-| PHP | 8.2 | 8.3 |
-| PostgreSQL | 14 | 15+ |
+Keputusan: managed services dipilih untuk database, Redis, queue, dan object
+storage. Alternatifnya self-host semua service dalam VM atau Kubernetes.
+Managed services mengurangi pekerjaan patching dan failover, dengan trade-off
+biaya bulanan dan lock-in provider.
 
-### Cloud Provider Options
+Secret disimpan di Secrets Manager dan di-inject saat runtime, bukan dimasukkan
+ke image container. Database, Redis, dan object storage memakai enkripsi at-rest
+dengan KMS; semua koneksi antar tier memakai TLS bila didukung service.
 
-| Provider | Tier | Estimasi Biaya/Bulan |
-|----------|------|----------------------|
-| DigitalOcean Droplet | Basic 1GB | ~\$6 |
-| Linode/Akamai | Nanode 1GB | ~\$5 |
-| AWS EC2 | t3.micro | ~\$8 |
-| Railway.app | Hobby | ~\$5 (database terpisah) |
+## 2. Scaling dan Reliability
 
----
+### Autoscaling Policy
 
-## 3. Environment Variables
+- Minimum 2 API containers di dua Availability Zone.
+- Scale out saat CPU rata-rata >60% selama 5 menit, memory >70%, atau p95
+  latency >400 ms; scale in perlahan setelah 15 menit stabil.
+- Worker scale berdasarkan queue depth dan oldest-job age, bukan CPU saja.
+- ALB health check memakai endpoint liveness terpisah dari dependency check.
+- Read replica menerima query katalog dan detail; write tetap ke primary.
+- Connection pooling membatasi koneksi per container agar primary tidak kehabisan
+  connection saat autoscaling.
 
-### Backend (`backend/.env`)
+Saat traffic mendadak 10x, CDN menyerap static/image traffic, Redis melayani
+hot reads, API autoscaler menambah container, dan queue menunda resize/email.
+Jika read replica tertinggal, aplikasi dapat menampilkan data cache sedikit stale.
+Redis production dibuat Multi-AZ dengan replica dan failover otomatis. Jika Redis
+tetap gagal, cache dapat bypass dan rate limit memakai fallback, tetapi session
+SPA hilang sehingga user harus login ulang. Jika object storage gagal, listing
+dibuat dengan status `processing` dan retry job.
 
-| Variable | Development | Production |
-|----------|-------------|------------|
-| `APP_ENV` | `local` | `production` |
-| `APP_DEBUG` | `true` | `false` |
-| `APP_URL` | `http://localhost:8000` | `https://api.yourdomain.com` |
-| `DB_CONNECTION` | `pgsql` | `pgsql` |
-| `DB_HOST` | `127.0.0.1` | `127.0.0.1` |
-| `DB_PORT` | `5432` | `5432` |
-| `DB_DATABASE` | `marketplace` | `marketplace_prod` |
-| `DB_USERNAME` | `postgres` | `marketplace_user` |
-| `DB_PASSWORD` | _(dari local PG)_ | _(strong password)_ |
-| `FRONTEND_URL` | `http://localhost:5173` | `https://yourdomain.com` |
-| `FILESYSTEM_DISK` | `public` | `public` _(atau `s3`)_ |
+### Health Check dan Graceful Degradation
 
-### Frontend (`frontend/.env`)
+| Sinyal | Respons |
+|---|---|
+| Liveness gagal | ALB mengeluarkan instance dari target |
+| Database primary gagal | Endpoint tulis mengembalikan 503; endpoint baca tetap dilayani dari cache atau replica |
+| Redis gagal | Bypass cache dan fallback rate limit; session hilang sehingga user login ulang |
+| Queue tertunda | Tampilkan processing status, retry exponential backoff |
+| CDN miss tinggi | Observability alert, origin tetap protected oleh WAF |
 
-| Variable | Development | Production |
-|----------|-------------|------------|
-| `VITE_API_URL` | `http://localhost:8000` | `https://api.yourdomain.com` |
+Readiness hanya memeriksa proses dan dependency minimum per instance, bukan
+mengeluarkan semua instance hanya karena primary database gagal. Dengan begitu
+endpoint baca tetap dapat berjalan saat jalur write sedang dipulihkan.
 
----
+## 3. Backup dan Recovery
 
-## 4. File Storage Architecture
+| Komponen | Proteksi | Retensi target |
+|---|---|---:|
+| PostgreSQL | Automated snapshot harian | 35 hari |
+| PostgreSQL | Point in time recovery ke object storage | 35 hari |
+| Object storage | Versioning dan lifecycle noncurrent object | 90 hari |
+| Object storage | Cross-region replication bila RPO ketat | Sesuai tier |
+| Redis | Multi-AZ replica dan failover otomatis; rebuild cache dari source of truth | Session hilang jika seluruh cluster gagal; bukan backup utama |
+| Queue | Durable queue dan retry dead letter | 7 hari |
 
-### Development (Local Disk)
+Target recovery:
 
-```
-backend/
-└── storage/
-    └── app/
-        └── public/
-            └── listings/        ← foto upload tersimpan di sini
-                ├── abc123.jpg
-                └── def456.webp
+- RPO database <= 5 menit dengan WAL/PITR.
+- RTO database <= 60 menit untuk single-region failure.
+- RPO foto <= 15 menit jika replication aktif.
+- RTO aplikasi <= 15 menit karena image/container immutable dan autoscaling.
 
-backend/public/storage/          ← symlink → storage/app/public/
-```
+Rencana restore: freeze write, pilih recovery point, restore PostgreSQL ke
+staging, jalankan migration compatibility check, verifikasi row count dan
+sample listing, lalu promote database dan buka traffic bertahap. Object
+storage dipulihkan dari versioning/replica bila object terhapus atau rusak.
 
-URL akses: `http://localhost:8000/storage/listings/abc123.jpg`
+Keputusan: PITR dan versioning dipakai sebagai baseline, bukan backup manual
+ke laptop. Alternatifnya `pg_dump` dan sinkronisasi cron. Cara manual lebih
+murah untuk awal, tetapi recovery point lebih jarang dan restore drill lebih
+rentan gagal.
 
-### Production (S3-Compatible, Opsional)
+## 4. Monitoring, Alert, dan Logging
 
-Migrasi ke S3 cukup ubah `config/filesystems.php` dan set env:
+### Metrik Utama
 
-```dotenv
-FILESYSTEM_DISK=s3
-AWS_ACCESS_KEY_ID=...
-AWS_SECRET_ACCESS_KEY=...
-AWS_DEFAULT_REGION=ap-southeast-1
-AWS_BUCKET=marketplace-listings
-```
+- Request rate, error rate 4xx/5xx, p50/p95/p99 latency per route.
+- ALB target health, active connections, container CPU/memory, restart count.
+- PostgreSQL CPU, storage, connections, locks, replication lag, slow queries.
+- Redis hit ratio, memory, evictions, connection count.
+- Queue depth, oldest job age, retry count, dead letter count.
+- CDN cache hit ratio, origin bandwidth, image 4xx/5xx, WAF blocked requests.
+- Business metrics: login success, listing publish success, photo processing time.
 
-Tidak perlu ubah kode aplikasi — `Storage::disk('public')` otomatis redirect ke S3 jika disk default adalah S3.
+### Alert dan Log
 
----
+Alert high priority untuk 5xx >2%, p95 >1 detik, database unavailable,
+replication lag >30 detik, queue oldest job >5 menit, storage >80%, atau
+anomaly WAF. Log JSON terstruktur memuat request id, route, status, latency,
+user id yang sudah disamarkan, dan error code; jangan log cookie, password,
+presigned URL penuh, atau secret. Trace request API ke query database dan job
+queue menggunakan correlation id.
 
-## 5. Networking & Security
+## 5. Tahapan Evolusi
 
-### Ports yang Digunakan
+| Fase | Arsitektur | Kapan digunakan |
+|---|---|---|
+| 1. Single instance | Laravel, PostgreSQL, local/S3 storage, queue database | MVP dan traffic kecil |
+| 2. Scale-out | CDN, Redis cache/session, object storage, 2 API instances, read replica, managed queue | Mendekati target 100K DAU |
+| 3. Specialized scale | Search engine, multi-region read, event pipeline, regional failover | Search/relevance atau latency global menjadi bottleneck |
 
-| Service | Port | Access |
-|---------|------|--------|
-| PostgreSQL | 5432 | Internal only (tidak expose ke publik) |
-| PHP-FPM | Unix socket | Internal (komunikasi dengan Nginx) |
-| Nginx HTTP | 80 | Public (redirect ke HTTPS) |
-| Nginx HTTPS | 443 | Public |
-| Vite HMR (dev) | 5173 | Localhost only |
+Migrasi fase dilakukan dengan feature flag dan dual-read terbatas. Search engine
+baru dipakai setelah metrik `pg_trgm` menunjukkan latency atau index size tidak
+lagi ekonomis; jangan menambah komponen sebelum bottleneck terukur.
 
-### CORS Configuration
+Keputusan: multi-region ditunda sampai kebutuhan geografis dan RTO membenarkan
+kompleksitas. Alternatifnya active-active sejak awal. Active-active memberi
+resilience lebih tinggi, tetapi membutuhkan conflict strategy, global session,
+dan data replication yang belum diperlukan untuk MVP.
 
-`backend/config/cors.php`:
-```php
-'allowed_origins' => [env('FRONTEND_URL', 'http://localhost:5173')],
-'supports_credentials' => true,
-'allowed_methods' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-'allowed_headers' => ['*'],
-```
+## 6. Estimasi Biaya Kasar per Bulan
 
-### Rate Limiting
+Estimasi berikut adalah perkiraan USD untuk satu region, bukan quotation vendor.
+Asumsi: 100K DAU, 500 RPS peak, 1 TB object growth/tahun, egress gambar sekitar
+9 TB/bulan, tarif CDN sekitar USD 0,05 - 0,12/GB, satu
+primary dan satu read replica, managed services kelas production kecil-menengah.
+Biaya egress gambar sangat bergantung pada cache hit ratio dan lokasi pengguna.
 
-| Endpoint Group | Limit | Reset |
-|---------------|-------|-------|
-| `POST /register`, `POST /login` | 10 requests | per 1 menit |
-| Public catalog endpoints | 60 requests | per 1 menit |
-| Protected endpoints | 60 requests | per 1 menit |
+| Komponen | Perkiraan per bulan |
+|---|---:|
+| CDN dan WAF | USD 550 - 1.500 |
+| API containers dan ALB | USD 250 - 700 |
+| Queue worker containers | USD 75 - 250 |
+| PostgreSQL primary managed | USD 300 - 900 |
+| Read replica | USD 200 - 700 |
+| Redis managed | USD 100 - 350 |
+| Object storage 1 TB incremental | USD 25 - 100 |
+| Monitoring, logs, backup | USD 100 - 400 |
+| **Total perkiraan** | **USD 1.600 - 4.900/bulan** |
 
----
-
-## 6. Backup Strategy
-
-### Database Backup
-
-```bash
-# Cron job backup harian jam 02:00
-0 2 * * * pg_dump -U marketplace_user marketplace_prod | gzip > /backups/db/marketplace_$(date +\%Y\%m\%d).sql.gz
-
-# Retensi 30 hari
-0 3 * * * find /backups/db/ -mtime +30 -delete
-```
-
-### Storage Backup
-
-```bash
-# Sync foto ke S3 atau backup server
-0 4 * * * aws s3 sync /var/www/marketplace/backend/storage/app/public/listings/ s3://marketplace-backup/listings/
-```
-
----
-
-## 7. Scaling Considerations
-
-Saat traffic meningkat, pertimbangkan:
-
-1. **Database**: Tambahkan read replica PostgreSQL untuk query berat
-2. **File Storage**: Pindah ke S3 (sudah dipersiapkan via Storage abstraction)
-3. **Cache**: Tambahkan Redis untuk cache query listing populer (`Cache::remember`)
-4. **Queue**: Pindahkan proses resize gambar ke background job via Laravel Queue
-5. **CDN**: Serve static frontend assets via Cloudflare CDN
+Alternatif fase 1 dapat berada di bawah USD 100/bulan pada satu VM kecil,
+namun tidak memenuhi reliability, redundancy, dan peak target pada dokumen ini.
+Biaya harus divalidasi ulang memakai provider, region, retention, egress, dan
+cache hit ratio aktual sebelum production launch.

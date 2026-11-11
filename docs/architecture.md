@@ -1,217 +1,231 @@
-# Arsitektur Sistem – Marketplace Bapak-Bapak
+# Arsitektur Aplikasi Marketplace Bapak-Bapak
 
-> Dokumen ini menjelaskan keputusan arsitektur tingkat tinggi, struktur proyek, dan alur data sistem.
+Dokumen ini mendeskripsikan target arsitektur aplikasi untuk skala 100K DAU.
+Angka kapasitas adalah baseline desain, bukan klaim kapasitas environment lokal.
 
----
+## Status Implementasi
 
-## 1. Gambaran Arsitektur
+| Komponen | Status |
+|---|---|
+| SPA auth, Policy, Form Request, auth/catalog rate limit, index DB | Sudah diimplementasi |
+| Upload foto | Lokal melalui `Storage::disk('public')` (dummy), target: presigned URL ke S3 |
+| Redis, CDN, queue resize, read replica | Rancangan |
+| Pagination | Saat ini offset pagination melalui Eloquent `paginate()`; cursor pagination adalah rencana |
+
+## Asumsi dan Hitungan Kapasitas
+
+| Asumsi | Nilai |
+|---|---:|
+| Pengguna aktif harian | 100.000 DAU |
+| Request per pengguna per hari | 30 |
+| Rasio read:write | 95:5 |
+| Pengguna yang memasang listing per hari | 2% DAU |
+| Foto per listing | 4 |
+| Ukuran rata-rata per foto | 330 KB |
+| Target desain aplikasi | 500 RPS |
+
+| Hitungan | Hasil |
+|---|---:|
+| Request harian | 100.000 x 30 = 3.000.000 request/hari |
+| RPS rata-rata | 3.000.000 / 86.400 = 34,7, dibulatkan ~35 RPS |
+| Peak 10x | 35 x 10 = ~350 RPS |
+| Write harian | 3.000.000 x 5% = 150.000 write/hari |
+| Listing baru harian | 100.000 x 2% = 2.000 listing/hari |
+| Data foto harian | 2.000 x 4 x 330 KB = 2.640.000 KB, sekitar 2,6 GB/hari |
+| Data foto tahunan | 2,6 GB x 365 = sekitar 1 TB/tahun |
+| Bandwidth gambar (egress/download) | 3 MB/user/hari, 100.000 x 3 MB = sekitar 300 GB/hari, dilayani CDN |
+| Peak bandwidth foto | sekitar 300 Mbps, dilayani melalui CDN |
+
+## 1. User Flow
+
+```mermaid
+flowchart TD
+    Browse["Browse katalog"]
+    Search["Search dan filter"]
+    Detail["Detail listing"]
+    WhatsApp["Kontak penjual via wa.me"]
+    Register["Register atau login"]
+    Create["Pasang listing"]
+    Photos["Upload empat foto"]
+    Publish["Publish listing"]
+
+    Browse -->|"pilih kata kunci"| Search
+    Search -->|"pilih barang"| Detail
+    Detail -->|"hubungi penjual"| WhatsApp
+    Browse -->|"aksi pengguna"| Register
+    Register -->|"akses form"| Create
+    Create -->|"isi data barang"| Photos
+    Photos -->|"simpan metadata"| Publish
+```
+
+Keputusan: WhatsApp memakai deep link `wa.me` dengan pesan awal, bukan chat internal.
+Alternatifnya adalah membangun messaging service sendiri. Trade-off-nya adalah UX
+lebih sederhana dan biaya rendah, tetapi percakapan serta delivery status berada di
+luar sistem.
+
+## 2. Component Diagram
 
 ```mermaid
 flowchart LR
-    subgraph Client["Browser (React SPA)"]
-        UI["Vite + React + TS\nlocalhost:5173"]
-    end
+    React["React SPA"]
+    Laravel["Laravel API"]
+    Sanctum["Sanctum SPA cookie"]
+    Policy["Listing Policy"]
+    Postgres[("PostgreSQL")]
+    Redis[("Redis cache and session")]
+    ObjectStore["Object storage"]
+    Worker["Laravel queue worker"]
+    WhatsApp["WhatsApp wa.me"]
+    Email["Email provider"]
 
-    subgraph Backend["Laravel API"]
-        API["routes/api.php\nlocalhost:8000"]
-        Sanctum["Laravel Sanctum\n(Bearer Token)"]
-        Policy["ListingPolicy\n(Ownership)"]
-        Storage["Storage::disk('public')\n/storage/app/public"]
-    end
-
-    subgraph DB["PostgreSQL 17"]
-        PG["marketplace DB\nlocalhost:5432"]
-    end
-
-    UI -->|"Axios + Bearer Token\n/api/*"| API
-    API --> Sanctum
-    Sanctum --> Policy
-    API --> PG
-    API --> Storage
-    Storage -->|"public/storage symlink"| UI
+    React -->|"REST and CSRF"| Laravel
+    Laravel -->|"authentication"| Sanctum
+    Laravel -->|"ownership checks"| Policy
+    Laravel -->|"Eloquent reads and writes"| Postgres
+    Laravel -->|"cache and session"| Redis
+    Laravel -->|"presigned upload"| ObjectStore
+    Laravel -->|"dispatch resize job"| Worker
+    Worker -->|"read and write images"| ObjectStore
+    Laravel -->|"notification events"| Email
+    React -->|"external contact link"| WhatsApp
 ```
 
----
+### Technology Stack
 
-## 2. Tech Stack
+| Layer | Teknologi | Peran |
+|---|---|---|
+| UI | React, Vite, TypeScript, Tailwind, React Router | SPA katalog dan form |
+| API | Laravel 11, PHP 8.2+ | REST API, validation, resources |
+| Auth | Laravel Sanctum SPA cookie/session | Session web dan CSRF |
+| Authorization | Laravel Policy | Ownership listing |
+| Database | PostgreSQL | Data transaksi dan katalog |
+| Cache/session | Redis | Cache listing, session, rate limiter |
+| Storage | S3-compatible object storage | Original dan thumbnail foto |
+| Async | Laravel Queue worker | Resize, re-encode, email |
+| Edge | CDN dan WAF | TLS termination, caching, protection |
 
-| Layer | Teknologi | Versi | Alasan |
-|-------|-----------|-------|--------|
-| Frontend | React + Vite + TypeScript | React 19 / Vite 6 | SPA cepat, type-safety, ekosistem besar |
-| Styling | Tailwind CSS v4 | 4.x | Utility-first, mobile-first, zero config |
-| HTTP Client | Axios | 1.x | Interceptor, error handling, multipart |
-| Routing | React Router DOM | v7 | File-based routing SPA |
-| Backend | Laravel | 13.x (Framework 11) | Laravel ekosistem lengkap: Eloquent, Policy, Form Request |
-| Auth | Laravel Sanctum | bundled | SPA Auth via Bearer Token (stateless JSON API) |
-| Database | PostgreSQL | 17.4 | ILIKE search, enum types, production-grade |
-| File Storage | Laravel Storage (public disk) | bundled | Abstraksi path, mudah migrasi ke S3 |
-| State Icons | Lucide React | 0.x | Icon set modern, tree-shakeable |
+### Data Storage dan External Service
 
----
+PostgreSQL menjadi source of truth untuk user, kategori, listing, dan metadata
+foto. Redis menyimpan cache read-heavy serta session saat deployment horizontal.
+Object storage menyimpan binary foto sehingga API tidak menjadi bottleneck.
+Email dipakai untuk notifikasi yang tidak harus synchronous, sementara WhatsApp
+tetap berupa link eksternal tanpa menyimpan isi chat.
 
-## 3. Struktur Folder
+Redis menyimpan session SPA sehingga deployment production harus memakai Redis
+Multi-AZ dengan replica dan failover otomatis. Jika Redis down, cache dapat
+fallback ke PostgreSQL, tetapi session dapat tidak tersedia dan pengguna bisa
+ter-logout; Redis tidak boleh diperlakukan sebagai dependency single-instance.
 
-### Backend (`/backend`)
+## 3. Sequence Diagram
 
-```
-backend/
-├── app/
-│   ├── Http/
-│   │   ├── Controllers/Api/
-│   │   │   ├── AuthController.php        # register, login, logout, me
-│   │   │   ├── ListingController.php     # CRUD + status + userListings
-│   │   │   └── CategoryController.php   # index dengan listings_count
-│   │   ├── Requests/
-│   │   │   ├── Auth/
-│   │   │   │   ├── RegisterRequest.php
-│   │   │   │   ├── LoginRequest.php
-│   │   │   │   └── UpdateProfileRequest.php
-│   │   │   └── Listing/
-│   │   │       ├── StoreListingRequest.php   # validasi + max 5 foto 2MB
-│   │   │       ├── UpdateListingRequest.php
-│   │   │       └── UpdateListingStatusRequest.php
-│   │   └── Resources/
-│   │       ├── UserResource.php     # full user (email included, untuk /me)
-│   │       ├── SellerResource.php   # subset: id, name, whatsapp, location ONLY
-│   │       ├── CategoryResource.php
-│   │       └── ListingResource.php  # nesting SellerResource + images URL
-│   ├── Models/
-│   │   ├── User.php          # HasMany listings
-│   │   ├── Category.php      # HasMany listings
-│   │   ├── Listing.php       # BelongsTo user, category; HasMany images
-│   │   └── ListingImage.php  # BelongsTo listing
-│   ├── Policies/
-│   │   └── ListingPolicy.php  # update, delete, updateStatus → owner only
-│   └── Traits/
-│       └── ApiResponse.php    # error() helper → { error: { code, message } }
-├── database/
-│   ├── factories/   # UserFactory, CategoryFactory, ListingFactory, ListingImageFactory
-│   ├── migrations/  # 4 migration files
-│   └── seeders/     # UserSeeder, CategorySeeder, ListingSeeder, DatabaseSeeder
-├── routes/
-│   └── api.php      # semua API routes dengan throttle + auth:sanctum middleware
-├── storage/app/public/listings/   # file foto upload
-└── public/storage/                # symlink → storage/app/public
-```
-
-### Frontend (`/frontend`)
-
-```
-frontend/src/
-├── api/
-│   └── axios.ts          # Axios instance, Bearer Token interceptor, getCsrfCookie()
-├── context/
-│   └── AuthContext.tsx   # user, login, register, logout, loading, isAuthenticated
-├── components/
-│   ├── Navbar.tsx         # sticky, responsive, mobile drawer, search, user menu
-│   ├── Footer.tsx
-│   ├── ProtectedRoute.tsx # ProtectedRoute + GuestRoute HOC
-│   ├── ListingCard.tsx    # grid card: foto, nama, harga IDR, badge
-│   ├── BadgeStatus.tsx    # Tersedia (emerald) / Terjual (rose)
-│   ├── BadgeCondition.tsx # warna per kondisi (Baru/Seperti Baru/Baik/Lumayan)
-│   ├── EmptyState.tsx     # ilustrasi + pesan + aksi
-│   ├── ErrorState.tsx     # ilustrasi + pesan + retry
-│   ├── LoadingSkeleton.tsx # ListingGridSkeleton + ListingDetailSkeleton
-│   └── ConfirmModal.tsx   # modal konfirmasi hapus
-├── pages/
-│   ├── HomePage.tsx           # katalog + search + filter + pagination (URL sync)
-│   ├── ListingDetailPage.tsx  # galeri, info penjual, WhatsApp CTA
-│   ├── LoginPage.tsx
-│   ├── RegisterPage.tsx
-│   ├── CreateListingPage.tsx  # multi-foto upload dengan preview
-│   ├── EditListingPage.tsx    # load + ownership check + update
-│   └── ProfilePage.tsx        # info user + kelola listing (toggle/edit/hapus)
-├── types/
-│   └── index.ts   # TypeScript types: User, Listing, Category, dll
-└── utils/
-    ├── format.ts      # formatRupiah, CONDITION_LABELS, STATUS_LABELS, formatDate
-    └── whatsapp.ts    # normalizeWhatsAppNumber (08xx→628xx), generateWhatsAppLink
-```
-
----
-
-## 4. Alur Auth (Bearer Token)
+### Login SPA
 
 ```mermaid
 sequenceDiagram
     participant Browser
-    participant React
-    participant Laravel
-
-    Browser->>React: Klik Login
-    React->>Laravel: GET /sanctum/csrf-cookie
-    Laravel-->>React: Set XSRF-TOKEN cookie
-    React->>Laravel: POST /api/login { email, password }
-    Laravel-->>React: { data: { token, user } }
-    React->>React: localStorage.setItem('token', ...)
-    React->>Laravel: GET /api/listings (Header: Authorization: Bearer <token>)
-    Laravel-->>React: { data: { listings... } }
+    participant SPA
+    participant API
+    participant Redis
+    Browser->>SPA: Submit login form
+    SPA->>API: GET sanctum csrf cookie
+    API-->>Browser: Set CSRF cookie
+    SPA->>API: POST login with CSRF header
+    API->>Redis: Create session
+    Redis-->>API: Session identifier
+    API-->>Browser: Set session cookie
+    SPA->>API: GET me with session cookie
+    API-->>SPA: Authenticated user
 ```
 
-> **Catatan**: Aplikasi ini menggunakan **stateless token-based auth** (bukan cookie session). Token Sanctum disimpan di `localStorage` dan dikirim sebagai `Authorization: Bearer <token>` header di setiap request.
-
----
-
-## 5. Alur Upload Foto
+### Rancangan Target Upload Foto dan Resize
 
 ```mermaid
 sequenceDiagram
-    participant User
-    participant React
-    participant Laravel
-    participant Storage
-
-    User->>React: Pilih file (max 5, 2MB/foto)
-    React->>React: Validasi client-side + preview blob URL
-    User->>React: Submit form
-    React->>Laravel: POST /api/listings (multipart/form-data, images[])
-    Laravel->>Laravel: Validasi StoreListingRequest (server-side)
-    Laravel->>Storage: Storage::disk('public')->put('listings/', $file)
-    Storage-->>Laravel: path string (listings/xxx.jpg)
-    Laravel->>Laravel: Simpan ListingImage { path, sort_order }
-    Laravel-->>React: 201 Created { data: { listing + images } }
-    React->>User: Redirect ke /listings/{id}
+    participant SPA
+    participant API
+    participant S3
+    participant DB
+    participant Queue
+    participant Worker
+    SPA->>API: Request presigned upload URLs
+    API-->>SPA: Presigned URLs and upload id
+    SPA->>S3: Upload original photos directly
+    S3-->>SPA: Upload complete
+    SPA->>API: Create listing with object keys
+    API->>Queue: Dispatch resize job
+    Queue->>Worker: Consume resize job
+    Worker->>S3: Read original and write thumbnail
+    Worker->>DB: Update photo processing status
 ```
 
----
+Implementasi saat ini masih memakai multipart upload ke Laravel dan local
+filesystem melalui `Storage::disk('public')`. Presigned URL dipilih sebagai
+target untuk menghindari streaming binary melalui Laravel API. Trade-off-nya,
+presigned upload membutuhkan lifecycle object dan status processing, tetapi
+mengurangi beban CPU, memory, dan bandwidth application tier.
 
-## 6. Strategi Error Handling
+## 4. Caching, Indexing, dan Pagination
 
-Semua error API menggunakan format konsisten:
+### Caching Strategy
 
-```json
-{
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Data yang diberikan tidak valid.",
-    "details": {
-      "name": ["Nama barang wajib diisi."],
-      "images.0": ["File gambar tidak boleh lebih dari 2MB."]
-    }
-  }
-}
-```
+| Data | Cache key | TTL | Invalidasi |
+|---|---|---:|---|
+| Homepage listing | `listings:query:<hash>` | 30 detik | Mengandalkan TTL; tidak ada invalidasi per kombinasi query |
+| Detail listing | `listing:<id>` | 60 detik | Hapus saat listing atau foto berubah |
+| Kategori | `categories:all` | 10 menit | Hapus saat kategori berubah |
+| Session | Laravel session key | 120 menit | Invalidate saat logout |
 
-| HTTP Code | Code String | Trigger |
-|-----------|-------------|---------|
-| 422 | `VALIDATION_ERROR` | Form Request gagal validasi |
-| 401 | `UNAUTHENTICATED` | Tidak ada / token expired |
-| 403 | `FORBIDDEN` | Bukan owner listing |
-| 404 | `NOT_FOUND` | Model tidak ditemukan |
-| 429 | `TOO_MANY_REQUESTS` | Throttle limit tercapai |
-| 500 | `SERVER_ERROR` | Uncaught exception |
+Cache homepage bersifat best effort dan mengandalkan TTL 30 detik karena key
+berbasis hash query memiliki banyak kombinasi. Invalidasi aktif hanya dilakukan
+untuk `listing:<id>` dan `categories:all` setelah transaksi database berhasil
+commit. Jika Redis tidak tersedia, request read dapat diteruskan ke PostgreSQL,
+tetapi session Redis memerlukan failover otomatis sesuai status implementasi di
+atas.
 
----
+### Indexing dan Search
 
-## 7. Security
+- B-tree pada `listings(category_id, condition, status, created_at)` untuk
+  filter dan sort katalog.
+- B-tree pada `listings(user_id, created_at)` untuk profil penjual.
+- Index `listing_images(listing_id, sort_order)` untuk galeri.
+- `pg_trgm` dan GIN trigram index pada kolom `name` dan `description` untuk
+  search substring. Query search tetap dibatasi status dan pagination.
+- Query memakai eager loading `category`, `user`, dan `images` untuk mencegah N+1.
 
-| Aspek | Implementasi |
-|-------|-------------|
-| **Auth** | Sanctum Bearer Token → header `Authorization: Bearer xxx` |
-| **Ownership** | `ListingPolicy` via `$this->authorize()` di controller — tidak manual check |
-| **Input Validation** | Semua endpoint pakai **Form Request** (tidak ada validasi ad-hoc di controller) |
-| **SQL Injection** | Eloquent query builder + parameter binding — tidak ada raw SQL tanpa binding |
-| **File Upload** | Validasi `mimes:jpg,jpeg,png,webp` + `max:2048` KB per file, max 5 file |
-| **Rate Limiting** | `throttle:10,1` untuk register/login; `throttle:60,1` untuk public endpoints |
-| **CORS** | `config/cors.php`: allowed_origins dari `.env` `FRONTEND_URL`, `supports_credentials: true` |
-| **Data Exposure** | `SellerResource` hanya expose `id, name, whatsapp, location` — email & password tidak pernah ada di response publik |
+Keputusan: PostgreSQL `pg_trgm` dipilih sebelum search engine khusus. Alternatifnya
+Elasticsearch/OpenSearch. PostgreSQL lebih sederhana dan cukup untuk katalog MVP,
+sedangkan search engine memberi relevance dan scale lebih besar dengan biaya
+operasional serta sinkronisasi tambahan.
+
+### Pagination
+
+Implementasi saat ini menggunakan offset pagination melalui Eloquent `paginate()`.
+Default `per_page` 12, maksimum 50, dan sort stabil memakai `created_at` lalu `id`.
+Cursor pagination untuk feed yang terus berubah adalah rencana pengembangan.
+
+## 5. Security
+
+| Area | Kontrol |
+|---|---|
+| Authentication | Sanctum SPA cookie/session, CSRF cookie, password hash bawaan |
+| Authorization | `ListingPolicy`: hanya owner boleh update, delete, ubah status |
+| Input validation | Form Request untuk semua endpoint; allowlist enum dan field |
+| Rate limiting | Auth 10/menit; katalog 60/menit; protected mutation route saat ini memakai `auth:sanctum` tanpa throttle dedicated |
+| CORS dan CSRF | Origin eksplisit dari `FRONTEND_URL`, credentials aktif, CSRF header |
+| Secret management | `.env` lokal; production secret manager, bukan repository |
+| Encryption | TLS di edge dan encryption at rest untuk database, Redis, object storage |
+| File upload | Validasi MIME dan ukuran, batas jumlah file, random object key |
+| Image safety | Re-encode dengan image library, strip metadata, buat thumbnail server-side |
+| Access control | Bucket private; URL download/upload berumur pendek; CDN signed URL bila perlu |
+
+## 6. Keputusan Utama dan Trade-off
+
+| Pilihan | Alternatif | Trade-off |
+|---|---|---|
+| Laravel API stateless di application container | Server-rendered monolith | SPA memberi UX interaktif, tetapi membutuhkan CORS dan deployment terpisah |
+| Sanctum SPA cookie/session | Bearer token di localStorage | Cookie lebih aman untuk first-party SPA, tetapi perlu CSRF dan stateful domain |
+| PostgreSQL sebagai source of truth | NoSQL database | Relasi dan transaksi lebih sederhana di PostgreSQL; scale write perlu replica dan tuning |
+| Redis untuk cache/session | Database session saja | Redis cepat dan horizontal-friendly, tetapi menambah dependency |
+| S3 plus CDN | Local filesystem | Durable dan scalable; biaya storage/egress perlu dikontrol |
+| Queue untuk resize/email | Synchronous processing | Request cepat dan retry tersedia; UX perlu status processing |

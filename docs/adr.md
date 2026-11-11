@@ -4,7 +4,7 @@ Dokumen ini mencatat keputusan arsitektur yang diambil selama pengembangan Marke
 
 ---
 
-## ADR-001: Sanctum Bearer Token (Stateless) vs Cookie Session
+## ADR-001: Sanctum SPA Cookie Session
 
 **Status**: Diterima  
 **Tanggal**: 2026-11-10
@@ -19,20 +19,20 @@ Frontend berjalan di `localhost:5173`, backend di `localhost:8000` — berbeda p
 
 ### Keputusan
 
-Gunakan **Bearer Token** (Sanctum `createToken()`). Token disimpan di `localStorage` dan dikirim sebagai header `Authorization: Bearer <token>`.
+Gunakan Sanctum SPA authentication berbasis cookie/session. Frontend mengambil CSRF cookie terlebih dahulu, lalu Laravel membuat session web melalui guard `web`.
 
 ### Alasan
 
-- Tidak perlu konfigurasi cookie SameSite yang kompleks untuk cross-origin localhost dev
-- Lebih mudah ditest via `curl` dan Postman tanpa setup session/cookie
-- Stateless — cocok untuk eventual mobile app di masa depan
-- `getCsrfCookie()` tetap dipanggil sebelum login/register sebagai best practice (meski tidak wajib untuk token mode)
+- Session cookie tidak mengekspos credential ke JavaScript atau `localStorage`
+- Sanctum SPA adalah mekanisme resmi Laravel untuk frontend SPA first-party
+- `getCsrfCookie()` dipanggil sebelum register dan login untuk perlindungan CSRF
+
 
 ### Konsekuensi
 
-- Token di `localStorage` rentan terhadap XSS — mitigasi: sanitasi input, CSP header di production
-- Logout harus menghapus token secara eksplisit dari `localStorage`
-- Tidak ada `refresh token` — expired token = user harus login ulang
+- Browser mengirim cookie session pada request API dengan `withCredentials`
+- CORS harus mengaktifkan `supports_credentials` dan origin frontend yang eksplisit
+- Session di-invalidate saat logout untuk mencegah reuse session
 
 ---
 

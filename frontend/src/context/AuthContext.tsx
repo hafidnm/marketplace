@@ -27,11 +27,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Check current session / token on mount
+  // Check the current Sanctum session on mount.
   useEffect(() => {
     const fetchCurrentUser = async () => {
-      const token = localStorage.getItem('token');
-      // Even without token, check if cookie session is active
       try {
         const response = await api.get('/me');
         if (response.data?.data) {
@@ -39,9 +37,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } catch {
         setUser(null);
-        if (token) {
-          localStorage.removeItem('token');
-        }
       } finally {
         setLoading(false);
       }
@@ -53,21 +48,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     await getCsrfCookie();
     const response = await api.post('/login', { email, password });
-    const { token, user: userData } = response.data.data;
-    if (token) {
-      localStorage.setItem('token', token);
-    }
-    setUser(userData);
+    setUser(response.data.data.user);
   };
 
   const register = async (data: RegisterData) => {
     await getCsrfCookie();
     const response = await api.post('/register', data);
-    const { token, user: userData } = response.data.data;
-    if (token) {
-      localStorage.setItem('token', token);
-    }
-    setUser(userData);
+    setUser(response.data.data.user);
   };
 
   const logout = async () => {
@@ -76,7 +63,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err) {
       console.warn('Logout API error:', err);
     } finally {
-      localStorage.removeItem('token');
       setUser(null);
     }
   };

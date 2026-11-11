@@ -84,6 +84,8 @@ class MarketplaceApiTest extends TestCase
      */
     public function test_auth_registration_and_profile(): void
     {
+        $this->withHeader('Origin', 'http://localhost:5173');
+
         $userData = [
             'name' => 'Pak Test Santoso',
             'email' => 'pak.santoso.' . uniqid() . '@example.com',
@@ -100,22 +102,17 @@ class MarketplaceApiTest extends TestCase
                 'success',
                 'data' => [
                     'user' => ['id', 'name', 'email', 'whatsapp', 'location'],
-                    'token',
                 ],
             ]);
 
-        $token = $regResponse->json('data.token');
-
-        // Access /api/me with Bearer token
-        $meResponse = $this->withHeader('Authorization', 'Bearer ' . $token)
-            ->getJson('/api/me');
+        // Access /api/me with the session established by registration.
+        $meResponse = $this->getJson('/api/me');
 
         $meResponse->assertStatus(200)
             ->assertJsonPath('data.email', $userData['email']);
 
         // Logout
-        $logoutResponse = $this->withHeader('Authorization', 'Bearer ' . $token)
-            ->postJson('/api/logout');
+        $logoutResponse = $this->postJson('/api/logout');
 
         $logoutResponse->assertStatus(200);
     }
@@ -125,6 +122,8 @@ class MarketplaceApiTest extends TestCase
      */
     public function test_auth_login(): void
     {
+        $this->withHeader('Origin', 'http://localhost:5173');
+
         // Invalid login
         $failResponse = $this->postJson('/api/login', [
             'email' => 'nonexistent@example.com',
@@ -145,7 +144,6 @@ class MarketplaceApiTest extends TestCase
                 'success',
                 'data' => [
                     'user' => ['id', 'name', 'email', 'whatsapp'],
-                    'token',
                 ],
             ]);
     }

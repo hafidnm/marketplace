@@ -6,6 +6,7 @@ const API_BASE_URL = `${BACKEND_URL.replace(/\/+$/, '')}/api`;
 export const api = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
+  withXSRFToken: true,
   headers: {
     Accept: 'application/json',
   },
@@ -15,37 +16,16 @@ export const api = axios.create({
  * Fetch Laravel Sanctum CSRF cookie before authentication calls
  */
 export async function getCsrfCookie(): Promise<void> {
-  try {
-    await axios.get(`${BACKEND_URL.replace(/\/+$/, '')}/sanctum/csrf-cookie`, {
-      withCredentials: true,
-    });
-  } catch (err) {
-    console.warn('Could not fetch Sanctum CSRF cookie:', err);
-  }
+  await axios.get(`${BACKEND_URL.replace(/\/+$/, '')}/sanctum/csrf-cookie`, {
+    withCredentials: true,
+    withXSRFToken: true,
+  });
 }
-
-// Request interceptor: attach bearer token if present in localStorage
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
 
 // Response interceptor: handle 401 unauthenticated
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Optional: clear stale token if present
-      localStorage.removeItem('token');
-    }
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 export default api;

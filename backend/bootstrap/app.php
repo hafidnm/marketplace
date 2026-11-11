@@ -20,10 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Stateful API (CSRF cookie-based) is DISABLED.
-        // This app uses Sanctum Bearer Token (stateless), so CSRF verification
-        // on /api/* routes is not needed and would cause HTTP 419 errors.
-        // $middleware->statefulApi();
+        $middleware->statefulApi();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (ValidationException $e, Request $request) {
@@ -43,7 +40,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 return response()->json([
                     'error' => [
                         'code' => 'UNAUTHENTICATED',
-                        'message' => 'Unauthenticated or token expired.',
+                        'message' => 'Unauthenticated or session expired.',
                     ],
                 ], 401);
             }
