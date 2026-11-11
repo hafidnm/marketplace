@@ -11,18 +11,20 @@ import { RegisterPage } from './pages/RegisterPage';
 import { CreateListingPage } from './pages/CreateListingPage';
 import { EditListingPage } from './pages/EditListingPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { SellerProfilePage } from './pages/SellerProfilePage';
 
 export function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans selection:bg-amber-200 selection:text-amber-900">
+        <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans selection:bg-brand-200 selection:text-brand-900">
           <Navbar />
           <main className="flex-1">
             <Routes>
               {/* Public Routes */}
               <Route path="/" element={<HomePage />} />
               <Route path="/listings/:id" element={<ListingDetailPage />} />
+              <Route path="/penjual/:id" element={<SellerProfilePage />} />
 
               {/* Guest Only Routes */}
               <Route

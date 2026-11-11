@@ -27,6 +27,7 @@ export const ListingDetailPage: React.FC = () => {
 
   const [listing, setListing] = useState<Listing | null>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -116,15 +117,22 @@ export const ListingDetailPage: React.FC = () => {
         <div className="lg:col-span-7 space-y-4">
           {/* Active Big Image */}
           <div className="relative aspect-4/3 w-full bg-slate-900 rounded-2xl overflow-hidden border border-slate-200 shadow-sm flex items-center justify-center">
-            <img
-              src={activeImage}
-              alt={listing.name}
-              className="w-full h-full object-contain sm:object-cover"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src =
-                  'https://images.unsplash.com/photo-1581783898377-1c85bf937427?w=800&auto=format&fit=crop&q=80';
-              }}
-            />
+            <button
+              type="button"
+              onClick={() => setLightboxOpen(true)}
+              className="w-full h-full cursor-zoom-in"
+              aria-label="Lihat gambar lebih besar"
+            >
+              <img
+                src={activeImage}
+                alt={listing.name}
+                className="w-full h-full object-contain sm:object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src =
+                    'https://images.unsplash.com/photo-1581783898377-1c85bf937427?w=800&auto=format&fit=crop&q=80';
+                }}
+              />
+            </button>
             {/* Status overlay badge */}
             <div className="absolute top-4 left-4 flex gap-2">
               <BadgeStatus status={listing.status} className="shadow-md" />
@@ -138,10 +146,12 @@ export const ListingDetailPage: React.FC = () => {
               {allImages.map((imgUrl, idx) => (
                 <button
                   key={idx}
-                  onClick={() => setSelectedImageIndex(idx)}
+                  onClick={() => {
+                    setSelectedImageIndex(idx);
+                  }}
                   className={`aspect-square rounded-xl overflow-hidden border-2 transition-all cursor-pointer bg-slate-100 ${
                     selectedImageIndex === idx
-                      ? 'border-amber-500 shadow-md ring-2 ring-amber-500/20'
+                      ? 'border-brand-500 shadow-md ring-2 ring-brand-500/20'
                       : 'border-slate-200 hover:border-slate-300 opacity-75 hover:opacity-100'
                   }`}
                 >
@@ -152,6 +162,32 @@ export const ListingDetailPage: React.FC = () => {
                   />
                 </button>
               ))}
+            </div>
+
+          )}
+
+          {lightboxOpen && (
+            <div
+              className="fixed inset-0 z-50 bg-slate-950/95 p-4 sm:p-8 flex items-center justify-center"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Detail gambar barang"
+              onClick={() => setLightboxOpen(false)}
+            >
+              <button
+                type="button"
+                onClick={() => setLightboxOpen(false)}
+                className="absolute top-4 right-4 text-white hover:text-brand-300 text-3xl leading-none"
+                aria-label="Tutup gambar"
+              >
+                ×
+              </button>
+              <img
+                src={activeImage}
+                alt={listing.name}
+                className="max-h-full max-w-full object-contain"
+                onClick={(event) => event.stopPropagation()}
+              />
             </div>
           )}
 
@@ -169,7 +205,7 @@ export const ListingDetailPage: React.FC = () => {
           {/* Card Pricing & Title */}
           <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5 shadow-xs">
             {listing.category && (
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 w-fit px-2.5 py-1 rounded-md border border-amber-200">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-brand-700 bg-brand-50 w-fit px-2.5 py-1 rounded-md border border-brand-200">
                 <Tag className="w-3.5 h-3.5" />
                 <span>{listing.category.name}</span>
               </div>
@@ -214,7 +250,7 @@ export const ListingDetailPage: React.FC = () => {
             <div className="pt-4 border-t border-slate-100">
               {isOwner ? (
                 <div className="space-y-3">
-                  <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-800 font-medium">
+                  <div className="p-3 bg-brand-50 rounded-xl border border-brand-200 text-xs text-brand-800 font-medium">
                     Ini adalah barang jualan Anda. Anda dapat memperbarui informasi atau mengubah status.
                   </div>
                   <Link
@@ -273,7 +309,12 @@ export const ListingDetailPage: React.FC = () => {
                 </div>
                 <div>
                   <h4 className="text-base font-bold text-slate-900">
-                    {listing.seller.name}
+                    <Link
+                      to={`/penjual/${listing.seller.id}`}
+                      className="hover:text-brand-700 transition-colors"
+                    >
+                      {listing.seller.name}
+                    </Link>
                   </h4>
                   <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
                     <MapPin className="w-3.5 h-3.5 text-slate-400" />

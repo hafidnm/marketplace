@@ -12,7 +12,7 @@ export const BadgeCondition: React.FC<Props> = ({ condition, className = '' }) =
     NEW: 'bg-blue-50 text-blue-700 border-blue-200',
     LIKE_NEW: 'bg-teal-50 text-teal-700 border-teal-200',
     GOOD: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    FAIR: 'bg-amber-50 text-amber-700 border-amber-200',
+    FAIR: 'bg-brand-50 text-brand-700 border-brand-200',
   };
 
   return (

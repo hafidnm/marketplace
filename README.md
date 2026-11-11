@@ -1,14 +1,14 @@
-# Marketplace Barang Bekas Komunitas Bapak-Bapak
+# LaPak. - Lapaknya Para Bapak!
 
-Marketplace secondhand untuk komunitas bapak-bapak: pengguna dapat mencari
-barang, melihat detail dan penjual, memasang listing, serta menghubungi penjual
-melalui WhatsApp.
+Jual barang pribadi, temukan barang incaran, dan saling terhubung dalam satu
+komunitas.
 
 ## Fitur MVP
 
 - Register, login, logout, dan profil pengguna.
 - Katalog listing dengan pagination, pencarian, filter kategori, kondisi, dan status.
 - Detail listing dengan kategori, foto, lokasi, dan informasi penjual.
+- Profil penjual publik dengan statistik, filter listing, dan kontak WhatsApp.
 - Membuat, mengubah, menghapus listing milik sendiri.
 - Mengubah status listing menjadi `AVAILABLE` atau `SOLD`.
 - Upload 1 sampai 5 foto per listing.
@@ -93,8 +93,11 @@ php artisan storage:link
 ```
 
 Pada macOS/Linux, gunakan `cp .env.example .env` sebagai pengganti `copy`.
-Seeder membuat lima user, delapan kategori, dan 30 listing beserta placeholder
+Seeder membuat lima user, sembilan kategori, dan 30 listing beserta placeholder
 gambar sesuai kode seeder.
+
+Kategori bawaan: Pakaian, Aksesoris, Elektronik, Kendaraan, Perkakas, Hobi dan
+Olahraga, Rumah Tangga, Buku dan Media, serta Lainnya.
 
 ### 3. Install dan jalankan frontend
 

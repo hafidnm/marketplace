@@ -1,4 +1,4 @@
-# Arsitektur Infrastruktur Marketplace Bapak-Bapak
+# Arsitektur Infrastruktur LaPak.
 
 Dokumen ini mendeskripsikan target deployment cloud multi-AZ dan jalur evolusi
 dari local/single instance menuju sistem yang mampu melayani 500 RPS.

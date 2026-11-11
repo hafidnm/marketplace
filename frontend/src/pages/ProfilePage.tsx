@@ -126,7 +126,7 @@ export const ProfilePage: React.FC = () => {
       <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-amber-600 text-white flex items-center justify-center font-black text-2xl shadow-md shadow-amber-600/20">
+            <div className="w-16 h-16 rounded-2xl bg-brand-600 text-white flex items-center justify-center font-black text-2xl shadow-md shadow-brand-600/20">
               {user?.name?.charAt(0).toUpperCase() || <UserIcon className="w-8 h-8" />}
             </div>
             <div>
@@ -167,7 +167,7 @@ export const ProfilePage: React.FC = () => {
 
           <Link
             to="/listings/create"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold rounded-xl shadow-xs transition-colors shrink-0"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold rounded-xl shadow-xs transition-colors shrink-0"
           >
             <PlusCircle className="w-4 h-4" />
             <span>Pasang Barang Baru</span>
@@ -180,7 +180,7 @@ export const ProfilePage: React.FC = () => {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <Package className="w-5 h-5 text-amber-600" />
+              <Package className="w-5 h-5 text-brand-600" />
               <span>Kelola Daftar Barang Saya</span>
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -242,7 +242,7 @@ export const ProfilePage: React.FC = () => {
                     <div className="p-4 space-y-2">
                       <Link
                         to={`/listings/${listing.id}`}
-                        className="text-sm font-bold text-slate-900 line-clamp-2 hover:text-amber-700 transition-colors"
+                        className="text-sm font-bold text-slate-900 line-clamp-2 hover:text-brand-700 transition-colors"
                       >
                         {listing.name}
                       </Link>
@@ -289,7 +289,7 @@ export const ProfilePage: React.FC = () => {
                       {/* Edit */}
                       <Link
                         to={`/listings/${listing.id}/edit`}
-                        className="p-2 text-slate-600 hover:text-amber-700 hover:bg-white rounded-lg border border-transparent hover:border-slate-200 transition-all"
+                        className="p-2 text-slate-600 hover:text-brand-700 hover:bg-white rounded-lg border border-transparent hover:border-slate-200 transition-all"
                         title="Edit rincian barang"
                       >
                         <Edit className="w-4 h-4" />

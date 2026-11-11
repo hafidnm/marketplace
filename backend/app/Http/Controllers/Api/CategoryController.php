@@ -18,6 +18,7 @@ class CategoryController extends Controller
     public function index(): JsonResponse
     {
         $categories = Category::withCount('listings')
+            ->orderByRaw("CASE WHEN slug = 'lainnya' THEN 1 ELSE 0 END")
             ->orderBy('name')
             ->get();
 

@@ -1,5 +1,6 @@
 import React from 'react';
-import { Package, ShieldCheck, HeartHandshake, PhoneCall } from 'lucide-react';
+import { ShieldCheck, HeartHandshake, PhoneCall } from 'lucide-react';
+import { Logo } from './Logo';
 
 export const Footer: React.FC = () => {
   return (
@@ -8,16 +9,9 @@ export const Footer: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
           {/* Brand info */}
           <div className="space-y-3 md:col-span-1">
-            <div className="flex items-center gap-2 text-white font-extrabold text-lg">
-              <div className="w-8 h-8 rounded-lg bg-amber-600 text-white flex items-center justify-center font-black">
-                <Package className="w-5 h-5" />
-              </div>
-              <span>
-                Pasar<span className="text-amber-500">Bapak</span>
-              </span>
-            </div>
+            <Logo light />
             <p className="text-xs text-slate-400 leading-relaxed">
-              Marketplace barang bekas khusus komunitas bapak-bapak. Hobi, perkakas, otomotif, kopi, dan koleksi terpercaya dari sesama bapak.
+              Jual barang pribadi, temukan barang incaran, dan saling terhubung dalam satu komunitas.
             </p>
           </div>
 
@@ -54,7 +48,7 @@ export const Footer: React.FC = () => {
         </div>
 
         <div className="pt-6 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
-          <p>© {new Date().getFullYear()} PasarBapak. Mini Project Marketplace Komunitas.</p>
+          <p>© {new Date().getFullYear()} LaPak. Lapaknya Para Bapak!</p>
           <p className="text-slate-500">Dibangun dengan React, Vite, TypeScript, Tailwind, & Laravel 11.</p>
         </div>
       </div>

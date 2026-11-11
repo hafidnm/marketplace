@@ -1,4 +1,4 @@
-# Dokumentasi API Marketplace
+# Dokumentasi API LaPak.
 
 Base URL lokal: `http://localhost:8000/api`.
 Endpoint CSRF berada di `http://localhost:8000/sanctum/csrf-cookie`.
@@ -68,6 +68,7 @@ Response error:
 | `GET` | `/categories` | Tidak | 60/menit | Semua kategori + jumlah listing |
 | `GET` | `/listings` | Tidak | 60/menit | Katalog, search, filter, pagination |
 | `GET` | `/listings/:id` | Tidak | 60/menit | Detail listing |
+| `GET` | `/users/:id` | Tidak | 60/menit | Profil publik penjual |
 | `GET` | `/users/:id/listings` | Tidak | 60/menit | Listing milik user |
 | `POST` | `/listings` | Ya | Tidak dedicated | Membuat listing |
 | `PUT` | `/listings/:id` | Ya, owner | Tidak dedicated | Mengubah listing |
@@ -164,7 +165,37 @@ ID yang tidak ditemukan menghasilkan `404` dengan code `NOT_FOUND`.
 `GET /api/users/:id/listings`
 
 Query `status`, `page`, dan `per_page` didukung. `per_page` dibatasi 1 sampai
-50 dan response memakai struktur pagination Laravel.
+50 dan response memakai struktur pagination Laravel. User yang tidak ditemukan
+menghasilkan `404`.
+
+### Profil publik penjual
+
+`GET /api/users/:id`
+
+Endpoint ini publik dan memakai throttle katalog `60/menit`. Response hanya
+berisi data yang aman untuk profil publik:
+
+```json
+{
+  "success": true,
+  "message": "Profil penjual berhasil diambil.",
+  "data": {
+    "id": 1,
+    "name": "Bambang",
+    "location": "Jakarta",
+    "whatsapp": "628123456789",
+    "created_at": "2026-11-10T10:00:00+00:00",
+    "available_listings_count": 4,
+    "sold_listings_count": 2
+  }
+}
+```
+
+Email, password, dan field internal tidak dikembalikan. User yang tidak
+ditemukan menghasilkan `404`. Frontend menampilkan profil ini pada
+`/penjual/:id`; jika ID adalah user yang sedang login, frontend mengarahkan ke
+`/profile`. Profil publik tidak menyediakan tombol edit, hapus, atau ubah
+status.
 
 ### Create Listing
 

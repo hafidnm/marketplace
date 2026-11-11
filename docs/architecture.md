@@ -1,4 +1,4 @@
-# Arsitektur Aplikasi Marketplace Bapak-Bapak
+# Arsitektur Aplikasi LaPak.
 
 Dokumen ini mendeskripsikan target arsitektur aplikasi untuk skala 100K DAU.
 Angka kapasitas adalah baseline desain, bukan klaim kapasitas environment lokal.

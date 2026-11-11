@@ -75,7 +75,10 @@ Menyimpan akun pembeli sekaligus penjual. `email` unik. `whatsapp` dan
 
 ### `categories`
 
-Menyimpan `name` dan `slug`; `slug` memiliki unique index.
+Menyimpan `name` dan `slug`; `slug` memiliki unique index. Seeder menyediakan
+Pakaian, Aksesoris, Elektronik, Kendaraan, Perkakas, Hobi dan Olahraga, Rumah
+Tangga, Buku dan Media, serta Lainnya. Kategori Lainnya ditampilkan paling
+akhir pada endpoint katalog.
 
 ### `listings`
 

@@ -18,6 +18,16 @@ export interface Seller {
   location: string | null;
 }
 
+export interface PublicSeller {
+  id: number;
+  name: string;
+  location: string | null;
+  whatsapp: string | null;
+  created_at: string;
+  available_listings_count: number;
+  sold_listings_count: number;
+}
+
 export interface Category {
   id: number;
   name: string;

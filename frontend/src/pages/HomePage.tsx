@@ -36,7 +36,13 @@ export const HomePage: React.FC = () => {
       .get('/categories')
       .then((res) => {
         if (res.data?.data) {
-          setCategories(res.data.data);
+          setCategories(
+            [...res.data.data].sort((a: Category, b: Category) => {
+              if (a.slug === 'lainnya') return 1;
+              if (b.slug === 'lainnya') return -1;
+              return a.name.localeCompare(b.name, 'id');
+            })
+          );
         }
       })
       .catch((err) => console.warn('Could not load categories:', err));
@@ -125,16 +131,16 @@ export const HomePage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* Hero Banner Komunitas */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-amber-950 rounded-2xl p-6 sm:p-10 text-white relative overflow-hidden shadow-lg">
+      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-brand-950 rounded-2xl p-6 sm:p-10 text-white relative overflow-hidden shadow-lg">
         <div className="relative z-10 max-w-2xl space-y-3">
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-            Komunitas Bapak-Bapak Indonesia
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-brand-500/20 text-brand-300 border border-brand-500/30">
+            LaPak. - Lapaknya Para Bapak!
           </span>
           <h1 className="text-2xl sm:text-4xl font-black tracking-tight leading-tight">
-            Cari Barang Hobi & Perkakas Impian dari Sesama Bapak
+            Jual dan Temukan Barang Incaran di LaPak.
           </h1>
           <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
-            Dari bor cordless, kopi espresso manual, sparepart vespa, hingga audio vintage koleksi pribadi terawat.
+            Jual barang pribadi, temukan barang incaran, dan saling terhubung dalam satu komunitas.
           </p>
         </div>
         <div className="absolute right-0 bottom-0 top-0 w-1/3 opacity-10 bg-[radial-gradient(#f59e0b_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none" />
@@ -150,7 +156,7 @@ export const HomePage: React.FC = () => {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Cari nama barang atau deskripsi..."
-              className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-300 focus:border-amber-500 rounded-xl focus:outline-hidden transition-all"
+              className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-300 focus:border-brand-500 rounded-xl focus:outline-hidden transition-all"
             />
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none" />
             {searchInput && (
@@ -168,7 +174,7 @@ export const HomePage: React.FC = () => {
           </div>
           <button
             type="submit"
-            className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm rounded-xl transition-colors cursor-pointer shrink-0"
+            className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm rounded-xl transition-colors cursor-pointer shrink-0"
           >
             Cari
           </button>
@@ -177,7 +183,7 @@ export const HomePage: React.FC = () => {
         {/* Filter categories pills */}
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-xs font-bold text-slate-600 uppercase tracking-wider">
-            <Filter className="w-3.5 h-3.5 text-amber-600" />
+            <Filter className="w-3.5 h-3.5 text-brand-600" />
             <span>Kategori Barang</span>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -185,7 +191,7 @@ export const HomePage: React.FC = () => {
               onClick={() => handleCategorySelect('')}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 !categoryParam
-                  ? 'bg-amber-600 text-white shadow-xs'
+                  ? 'bg-brand-600 text-white shadow-xs'
                   : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
               }`}
             >
@@ -197,7 +203,7 @@ export const HomePage: React.FC = () => {
                 onClick={() => handleCategorySelect(cat.id.toString())}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
                   categoryParam === cat.id.toString()
-                    ? 'bg-amber-600 text-white shadow-xs'
+                    ? 'bg-brand-600 text-white shadow-xs'
                     : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                 }`}
               >
@@ -206,7 +212,7 @@ export const HomePage: React.FC = () => {
                   <span
                     className={`text-[10px] px-1.5 py-0.2 rounded-full ${
                       categoryParam === cat.id.toString()
-                        ? 'bg-amber-700 text-white'
+                        ? 'bg-brand-700 text-white'
                         : 'bg-slate-200 text-slate-600'
                     }`}
                   >

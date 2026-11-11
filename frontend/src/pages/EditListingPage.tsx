@@ -4,7 +4,6 @@ import {
   Save,
   AlertCircle,
   Tag,
-  DollarSign,
   MapPin,
   ArrowLeft,
   CheckCircle2,
@@ -50,7 +49,13 @@ export const EditListingPage: React.FC = () => {
         if (!isMounted) return;
 
         if (catRes.data?.data) {
-          setCategories(catRes.data.data);
+          setCategories(
+            [...catRes.data.data].sort((a: Category, b: Category) => {
+              if (a.slug === 'lainnya') return 1;
+              if (b.slug === 'lainnya') return -1;
+              return a.name.localeCompare(b.name, 'id');
+            })
+          );
         }
 
         const data: Listing = listingRes.data?.data;
@@ -145,7 +150,7 @@ export const EditListingPage: React.FC = () => {
     return (
       <div className="min-h-[50vh] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-amber-600 border-t-transparent rounded-full animate-spin" />
+          <div className="w-10 h-10 border-4 border-brand-600 border-t-transparent rounded-full animate-spin" />
           <p className="text-sm text-slate-500 font-medium">Memuat data barang...</p>
         </div>
       </div>
@@ -203,13 +208,16 @@ export const EditListingPage: React.FC = () => {
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
               Judul / Nama Barang <span className="text-rose-500">*</span>
             </label>
+            <span className="absolute left-3.5 top-2.5 text-sm font-semibold text-slate-500">
+              Rp
+            </span>
             <input
               type="text"
               required
               name="name"
               value={formData.name}
               onChange={handleInputChange}
-              className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-amber-500 rounded-xl focus:outline-hidden transition-all"
+              className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-brand-500 rounded-xl focus:outline-hidden transition-all"
             />
           </div>
 
@@ -224,7 +232,7 @@ export const EditListingPage: React.FC = () => {
                   name="category_id"
                   value={formData.category_id}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-amber-500 rounded-xl focus:outline-hidden transition-all appearance-none cursor-pointer"
+                  className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-brand-500 rounded-xl focus:outline-hidden transition-all appearance-none cursor-pointer"
                 >
                   {categories.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -245,7 +253,7 @@ export const EditListingPage: React.FC = () => {
                 name="condition"
                 value={formData.condition}
                 onChange={handleInputChange}
-                className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-amber-500 rounded-xl focus:outline-hidden transition-all cursor-pointer"
+                className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-brand-500 rounded-xl focus:outline-hidden transition-all cursor-pointer"
               >
                 {(['NEW', 'LIKE_NEW', 'GOOD', 'FAIR'] as ConditionType[]).map(
                   (cond) => (
@@ -264,6 +272,9 @@ export const EditListingPage: React.FC = () => {
                 Harga (Rupiah) <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
+                <span className="absolute left-3.5 top-2.5 text-sm font-semibold text-slate-500">
+                  Rp
+                </span>
                 <input
                   type="number"
                   required
@@ -272,9 +283,8 @@ export const EditListingPage: React.FC = () => {
                   name="price"
                   value={formData.price}
                   onChange={handleInputChange}
-                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-amber-500 rounded-xl focus:outline-hidden transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-brand-500 rounded-xl focus:outline-hidden transition-all"
                 />
-                <DollarSign className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none" />
               </div>
             </div>
 
@@ -289,7 +299,7 @@ export const EditListingPage: React.FC = () => {
                   name="location"
                   value={formData.location}
                   onChange={handleInputChange}
-                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-amber-500 rounded-xl focus:outline-hidden transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-brand-500 rounded-xl focus:outline-hidden transition-all"
                 />
                 <MapPin className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none" />
               </div>
@@ -306,7 +316,7 @@ export const EditListingPage: React.FC = () => {
               name="description"
               value={formData.description}
               onChange={handleInputChange}
-              className="w-full p-4 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-amber-500 rounded-xl focus:outline-hidden transition-all"
+              className="w-full p-4 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-brand-500 rounded-xl focus:outline-hidden transition-all"
             />
           </div>
         </div>
@@ -321,7 +331,7 @@ export const EditListingPage: React.FC = () => {
           <button
             type="submit"
             disabled={loading}
-            className="px-6 py-3 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white font-bold text-sm rounded-xl shadow-md shadow-amber-600/20 transition-all cursor-pointer flex items-center gap-2"
+            className="px-6 py-3 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-white font-bold text-sm rounded-xl shadow-md shadow-brand-600/20 transition-all cursor-pointer flex items-center gap-2"
           >
             {loading ? (
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />

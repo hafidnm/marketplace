@@ -6,7 +6,6 @@ import {
   Plus,
   AlertCircle,
   Tag,
-  DollarSign,
   MapPin,
   ArrowLeft,
 } from 'lucide-react';
@@ -43,7 +42,13 @@ export const CreateListingPage: React.FC = () => {
       .get('/categories')
       .then((res) => {
         if (res.data?.data) {
-          setCategories(res.data.data);
+          setCategories(
+            [...res.data.data].sort((a: Category, b: Category) => {
+              if (a.slug === 'lainnya') return 1;
+              if (b.slug === 'lainnya') return -1;
+              return a.name.localeCompare(b.name, 'id');
+            })
+          );
           if (res.data.data.length > 0) {
             setFormData((prev) => ({
               ...prev,
@@ -172,7 +177,7 @@ export const CreateListingPage: React.FC = () => {
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 mb-4 transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Kembali ke Pasar</span>
+          <span>Kembali ke LaPak.</span>
         </Link>
         <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
           Pasang Barang Bekas
@@ -242,7 +247,7 @@ export const CreateListingPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="aspect-square rounded-xl border-2 border-dashed border-slate-300 hover:border-amber-500 hover:bg-amber-50/50 flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-amber-700 transition-all cursor-pointer"
+                className="aspect-square rounded-xl border-2 border-dashed border-slate-300 hover:border-brand-500 hover:bg-brand-50/50 flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-brand-700 transition-all cursor-pointer"
               >
                 <Upload className="w-5 h-5" />
                 <span className="text-xs font-semibold">Tambah Foto</span>
@@ -250,6 +255,9 @@ export const CreateListingPage: React.FC = () => {
             )}
           </div>
 
+          <span className="absolute left-3.5 top-2.5 text-sm font-semibold text-slate-500">
+            Rp
+          </span>
           <input
             ref={fileInputRef}
             type="file"
@@ -281,7 +289,7 @@ export const CreateListingPage: React.FC = () => {
               value={formData.name}
               onChange={handleInputChange}
               placeholder="Contoh: Bor Cordless Bosch GSB 120-LI Lengkap Box"
-              className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-amber-500 rounded-xl focus:outline-hidden transition-all"
+              className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-brand-500 rounded-xl focus:outline-hidden transition-all"
             />
             {fieldErrors.name && (
               <p className="text-xs text-rose-600 mt-1">{fieldErrors.name[0]}</p>
@@ -299,7 +307,7 @@ export const CreateListingPage: React.FC = () => {
                   name="category_id"
                   value={formData.category_id}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-amber-500 rounded-xl focus:outline-hidden transition-all appearance-none cursor-pointer"
+                  className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-brand-500 rounded-xl focus:outline-hidden transition-all appearance-none cursor-pointer"
                 >
                   {categories.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -320,7 +328,7 @@ export const CreateListingPage: React.FC = () => {
                 name="condition"
                 value={formData.condition}
                 onChange={handleInputChange}
-                className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-amber-500 rounded-xl focus:outline-hidden transition-all cursor-pointer"
+                className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-brand-500 rounded-xl focus:outline-hidden transition-all cursor-pointer"
               >
                 {(['NEW', 'LIKE_NEW', 'GOOD', 'FAIR'] as ConditionType[]).map(
                   (cond) => (
@@ -339,6 +347,9 @@ export const CreateListingPage: React.FC = () => {
                 Harga (Rupiah) <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
+                <span className="absolute left-3.5 top-2.5 text-sm font-semibold text-slate-500">
+                  Rp
+                </span>
                 <input
                   type="number"
                   required
@@ -348,9 +359,8 @@ export const CreateListingPage: React.FC = () => {
                   value={formData.price}
                   onChange={handleInputChange}
                   placeholder="Contoh: 750000"
-                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-amber-500 rounded-xl focus:outline-hidden transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-brand-500 rounded-xl focus:outline-hidden transition-all"
                 />
-                <DollarSign className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none" />
               </div>
               {fieldErrors.price && (
                 <p className="text-xs text-rose-600 mt-1">{fieldErrors.price[0]}</p>
@@ -369,7 +379,7 @@ export const CreateListingPage: React.FC = () => {
                   value={formData.location}
                   onChange={handleInputChange}
                   placeholder="Contoh: Jakarta Selatan / Bintaro"
-                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-amber-500 rounded-xl focus:outline-hidden transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-brand-500 rounded-xl focus:outline-hidden transition-all"
                 />
                 <MapPin className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none" />
               </div>
@@ -393,7 +403,7 @@ export const CreateListingPage: React.FC = () => {
                 value={formData.description}
                 onChange={handleInputChange}
                 placeholder="Jelaskan kondisi kelengkapan, riwayat pemakaian, alasan jual, dan minus barang secara jujur..."
-                className="w-full p-4 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-amber-500 rounded-xl focus:outline-hidden transition-all"
+                className="w-full p-4 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-brand-500 rounded-xl focus:outline-hidden transition-all"
               />
             </div>
             {fieldErrors.description && (
@@ -415,7 +425,7 @@ export const CreateListingPage: React.FC = () => {
           <button
             type="submit"
             disabled={loading}
-            className="px-6 py-3 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white font-bold text-sm rounded-xl shadow-md shadow-amber-600/20 transition-all cursor-pointer flex items-center gap-2"
+            className="px-6 py-3 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-white font-bold text-sm rounded-xl shadow-md shadow-brand-600/20 transition-all cursor-pointer flex items-center gap-2"
           >
             {loading ? (
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />

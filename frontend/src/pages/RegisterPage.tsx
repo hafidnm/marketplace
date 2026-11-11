@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { UserPlus, User, Mail, Lock, Phone, MapPin, AlertCircle, ArrowLeft } from 'lucide-react';
+import { User, Mail, Lock, Phone, MapPin, AlertCircle, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { Logo } from '../components/Logo';
 
 export const RegisterPage: React.FC = () => {
   const { register } = useAuth();
@@ -71,11 +72,9 @@ export const RegisterPage: React.FC = () => {
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 mb-6 transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Kembali ke Pasar</span>
+            <span>Kembali ke LaPak.</span>
           </Link>
-          <div className="w-12 h-12 bg-amber-100 text-amber-700 rounded-xl flex items-center justify-center font-bold mb-3">
-            <UserPlus className="w-6 h-6" />
-          </div>
+          <Logo className="mb-3" />
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
             Daftar Akun Baru
           </h1>
@@ -104,7 +103,7 @@ export const RegisterPage: React.FC = () => {
                 value={formData.name}
                 onChange={handleChange}
                 placeholder="Contoh: Pak Bambang Prakoso"
-                className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-amber-500 rounded-xl focus:outline-hidden transition-all"
+                className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-brand-500 rounded-xl focus:outline-hidden transition-all"
               />
               <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none" />
             </div>
@@ -125,7 +124,7 @@ export const RegisterPage: React.FC = () => {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="bambang@contoh.com"
-                className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-amber-500 rounded-xl focus:outline-hidden transition-all"
+                className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-brand-500 rounded-xl focus:outline-hidden transition-all"
               />
               <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none" />
             </div>
@@ -146,7 +145,7 @@ export const RegisterPage: React.FC = () => {
                   value={formData.whatsapp}
                   onChange={handleChange}
                   placeholder="081234567890"
-                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-amber-500 rounded-xl focus:outline-hidden transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-brand-500 rounded-xl focus:outline-hidden transition-all"
                 />
                 <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none" />
               </div>
@@ -164,7 +163,7 @@ export const RegisterPage: React.FC = () => {
                   value={formData.location}
                   onChange={handleChange}
                   placeholder="Contoh: Jakarta Selatan"
-                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-amber-500 rounded-xl focus:outline-hidden transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-brand-500 rounded-xl focus:outline-hidden transition-all"
                 />
                 <MapPin className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none" />
               </div>
@@ -184,7 +183,7 @@ export const RegisterPage: React.FC = () => {
                   value={formData.password}
                   onChange={handleChange}
                   placeholder="Minimal 8 karakter"
-                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-amber-500 rounded-xl focus:outline-hidden transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-brand-500 rounded-xl focus:outline-hidden transition-all"
                 />
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none" />
               </div>
@@ -205,7 +204,7 @@ export const RegisterPage: React.FC = () => {
                   value={formData.password_confirmation}
                   onChange={handleChange}
                   placeholder="Ulangi kata sandi"
-                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-amber-500 rounded-xl focus:outline-hidden transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-300 focus:bg-white focus:border-brand-500 rounded-xl focus:outline-hidden transition-all"
                 />
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none" />
               </div>
@@ -215,7 +214,7 @@ export const RegisterPage: React.FC = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 px-4 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white font-bold text-sm rounded-xl shadow-md shadow-amber-600/20 transition-all cursor-pointer flex items-center justify-center gap-2 mt-4"
+            className="w-full py-3 px-4 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-white font-bold text-sm rounded-xl shadow-md shadow-brand-600/20 transition-all cursor-pointer flex items-center justify-center gap-2 mt-4"
           >
             {loading ? (
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -227,7 +226,7 @@ export const RegisterPage: React.FC = () => {
 
         <p className="text-center text-xs text-slate-500 pt-2 border-t border-slate-100">
           Sudah memiliki akun?{' '}
-          <Link to="/login" className="text-amber-700 font-bold hover:underline">
+          <Link to="/login" className="text-brand-700 font-bold hover:underline">
             Masuk ke sini
           </Link>
         </p>

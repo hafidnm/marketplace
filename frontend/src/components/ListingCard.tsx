@@ -20,7 +20,7 @@ export const ListingCard: React.FC<Props> = ({ listing }) => {
   return (
     <Link
       to={`/listings/${listing.id}`}
-      className="group bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md hover:border-amber-400 transition-all flex flex-col"
+      className="group bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md hover:border-brand-400 transition-all flex flex-col"
     >
       {/* Image container */}
       <div className="relative aspect-4/3 w-full bg-slate-100 overflow-hidden">
@@ -47,11 +47,11 @@ export const ListingCard: React.FC<Props> = ({ listing }) => {
         <div>
           {listing.category && (
             <div className="flex items-center gap-1 text-[11px] font-medium text-slate-500 mb-1">
-              <Tag className="w-3 h-3 text-amber-600" />
+              <Tag className="w-3 h-3 text-brand-600" />
               <span>{listing.category.name}</span>
             </div>
           )}
-          <h3 className="text-sm font-bold text-slate-800 line-clamp-2 group-hover:text-amber-700 transition-colors">
+          <h3 className="text-sm font-bold text-slate-800 line-clamp-2 group-hover:text-brand-700 transition-colors">
             {listing.name}
           </h3>
         </div>

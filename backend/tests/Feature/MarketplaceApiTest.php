@@ -25,7 +25,8 @@ class MarketplaceApiTest extends TestCase
                 'data' => [
                     '*' => ['id', 'name', 'slug', 'listings_count'],
                 ],
-            ]);
+            ])
+            ->assertJsonPath('data.8.slug', 'lainnya');
     }
 
     /**
@@ -231,5 +232,35 @@ class MarketplaceApiTest extends TestCase
                     'meta',
                 ],
             ]);
+    }
+
+    /**
+     * Test public seller profile does not expose private user fields.
+     */
+    public function test_can_get_public_seller_profile(): void
+    {
+        $user = User::first();
+
+        $response = $this->getJson('/api/users/' . $user->id);
+
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'success',
+                'message',
+                'data' => [
+                    'id',
+                    'name',
+                    'location',
+                    'whatsapp',
+                    'created_at',
+                    'available_listings_count',
+                    'sold_listings_count',
+                ],
+            ])
+            ->assertJsonMissing(['email', 'password']);
+
+        $this->getJson('/api/users/999999')
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', 'NOT_FOUND');
     }
 }

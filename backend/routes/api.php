@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ListingController;
+use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -41,5 +42,6 @@ Route::middleware(['throttle:60,1'])->group(function () {
     Route::get('/categories', [CategoryController::class, 'index']);
     Route::get('/listings', [ListingController::class, 'index']);
     Route::get('/listings/{id}', [ListingController::class, 'show']);
+    Route::get('/users/{id}', [UserController::class, 'show']);
     Route::get('/users/{id}/listings', [ListingController::class, 'userListings']);
 });

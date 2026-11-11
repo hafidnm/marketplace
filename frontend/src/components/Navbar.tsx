@@ -1,31 +1,19 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  Search,
   PlusCircle,
   User as UserIcon,
   LogOut,
   Menu,
   X,
-  Package,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { Logo } from './Logo';
 
 export const Navbar: React.FC = () => {
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchTerm.trim()) {
-      navigate(`/?q=${encodeURIComponent(searchTerm.trim())}`);
-      setMobileMenuOpen(false);
-    } else {
-      navigate('/');
-    }
-  };
 
   const handleLogout = async () => {
     await logout();
@@ -39,42 +27,19 @@ export const Navbar: React.FC = () => {
         <div className="flex items-center justify-between h-16 gap-4">
           {/* Brand Logo */}
           <Link to="/" className="flex items-center gap-2.5 shrink-0">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-600 to-amber-500 text-white flex items-center justify-center font-black shadow-md shadow-amber-600/20">
-              <Package className="w-6 h-6" />
-            </div>
-            <div>
-              <span className="font-extrabold text-lg tracking-tight text-slate-900 block leading-tight">
-                Pasar<span className="text-amber-600">Bapak</span>
-              </span>
-              <span className="text-[10px] font-semibold text-slate-500 tracking-wider uppercase block">
-                Barang Bekas Berkelas
-              </span>
+            <div className="flex flex-col items-start">
+              <Logo />
             </div>
           </Link>
-
-          {/* Search Bar (Desktop) */}
-          <form
-            onSubmit={handleSearchSubmit}
-            className="hidden md:flex flex-1 max-w-lg relative items-center"
-          >
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Cari bor, vespa, pancing, audio vintage..."
-              className="w-full pl-10 pr-4 py-2 text-sm bg-slate-100 hover:bg-slate-50 focus:bg-white border border-slate-200 focus:border-amber-500 rounded-full focus:outline-hidden transition-all placeholder:text-slate-400"
-            />
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
-          </form>
 
           {/* Desktop Right Navigation */}
           <div className="hidden md:flex items-center gap-3">
             <Link
               to="/listings/create"
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-full shadow-xs hover:shadow-md shadow-amber-600/20 transition-all cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-full shadow-xs hover:shadow-md shadow-brand-600/20 transition-all cursor-pointer"
             >
               <PlusCircle className="w-4 h-4" />
-              <span>Pasang Barang</span>
+              <span>Jual Barang</span>
             </Link>
 
             {isAuthenticated && user ? (
@@ -102,7 +67,7 @@ export const Navbar: React.FC = () => {
               <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
                 <Link
                   to="/login"
-                  className="px-3.5 py-1.5 text-sm font-semibold text-slate-700 hover:text-amber-700 rounded-lg hover:bg-slate-100 transition-colors"
+                  className="px-3.5 py-1.5 text-sm font-semibold text-slate-700 hover:text-brand-700 rounded-lg hover:bg-slate-100 transition-colors"
                 >
                   Masuk
                 </Link>
@@ -120,8 +85,8 @@ export const Navbar: React.FC = () => {
           <div className="flex md:hidden items-center gap-2">
             <Link
               to="/listings/create"
-              className="p-2 text-amber-600 hover:text-amber-700"
-              title="Pasang Barang"
+              className="p-2 text-brand-600 hover:text-brand-700"
+              title="Jual Barang"
             >
               <PlusCircle className="w-6 h-6" />
             </Link>
@@ -135,19 +100,6 @@ export const Navbar: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile Search Bar (under header) */}
-        <div className="md:hidden pb-3">
-          <form onSubmit={handleSearchSubmit} className="relative flex items-center">
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Cari barang hobi bapak..."
-              className="w-full pl-9 pr-4 py-1.5 text-sm bg-slate-100 border border-slate-200 focus:border-amber-500 rounded-full focus:outline-hidden"
-            />
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none" />
-          </form>
-        </div>
       </div>
 
       {/* Mobile Drawer Menu */}
@@ -192,7 +144,7 @@ export const Navbar: React.FC = () => {
               <Link
                 to="/register"
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center justify-center px-4 py-2.5 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-xl transition-colors text-center"
+                className="flex items-center justify-center px-4 py-2.5 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-xl transition-colors text-center"
               >
                 Daftar Akun
               </Link>
