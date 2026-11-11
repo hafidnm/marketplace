@@ -1,184 +1,144 @@
-# Dokumentasi Database - Marketplace Bapak-Bapak
+# Dokumentasi Database
 
-Dokumen ini menjelaskan rancangan skema database, Entity Relationship Diagram (ERD), strategi indexing, serta relasi model Eloquent untuk platform Marketplace Secondhand Komunitas Bapak-Bapak.
+Skema berikut diambil dari migration di `backend/database/migrations`.
+PostgreSQL adalah driver yang dipakai oleh `.env.example`.
 
----
-
-## 1. Entity Relationship Diagram (ERD)
+## ERD
 
 ```mermaid
 erDiagram
-    USERS ||--o{ LISTINGS : "places / owns"
-    CATEGORIES ||--o{ LISTINGS : "categorizes"
-    LISTINGS ||--o{ LISTING_IMAGES : "contains"
+    USERS ||--o{ LISTINGS : owns
+    CATEGORIES ||--o{ LISTINGS : categorizes
+    LISTINGS ||--o{ LISTING_IMAGES : contains
 
     USERS {
         bigint id PK
-        string name "Nama lengkap user / bapak"
-        string email UK "Email unik user"
-        string whatsapp "Nomor WA untuk kontak penjual (nullable)"
-        string location "Domisili/Kota user (nullable)"
-        timestamp email_verified_at "Waktu verifikasi email (nullable)"
-        string password "Password terenkripsi (bcrypt)"
-        string remember_token "Token remember me (nullable)"
+        string name
+        string email UK
+        string whatsapp nullable
+        string location nullable
+        timestamp email_verified_at nullable
+        string password
+        string remember_token nullable
         timestamp created_at
         timestamp updated_at
     }
-
     CATEGORIES {
         bigint id PK
-        string name "Nama kategori"
-        string slug UK "Slug URL kategori unik"
+        string name
+        string slug UK
         timestamp created_at
         timestamp updated_at
     }
-
     LISTINGS {
         bigint id PK
-        bigint user_id FK "Relasi ke users.id (CASCADE)"
-        bigint category_id FK "Relasi ke categories.id (CASCADE)"
-        string name "Judul barang dagangan"
-        text description "Deskripsi detail barang"
-        unsigned_int price "Harga barang (integer)"
-        string condition "Kondisi: NEW, LIKE_NEW, GOOD, FAIR"
-        string status "Status: AVAILABLE, SOLD (default AVAILABLE)"
-        string location "Lokasi fisik barang / COD"
+        bigint user_id FK
+        bigint category_id FK
+        string name
+        text description
+        unsigned_int price
+        enum condition
+        enum status
+        string location
         timestamp created_at
         timestamp updated_at
     }
-
     LISTING_IMAGES {
         bigint id PK
-        bigint listing_id FK "Relasi ke listings.id (CASCADE)"
-        string path "URL atau path file gambar"
-        smallint sort_order "Urutan galeri (default 0)"
+        bigint listing_id FK
+        string path
+        unsigned_smallint sort_order
         timestamp created_at
         timestamp updated_at
+    }
+    SESSIONS {
+        string id PK
+        bigint user_id indexed nullable
+        string ip_address nullable
+        text user_agent nullable
+        longtext payload
+        integer last_activity
     }
 ```
 
----
+`password_reset_tokens`, `cache`, `cache_locks`, `jobs`, `job_batches`,
+`failed_jobs`, dan `personal_access_tokens` juga dibuat oleh migration framework.
+Tabel tersebut tidak memiliki foreign key aplikasi pada migration yang ada dan
+tidak dimasukkan sebagai relasi domain utama pada ERD.
 
-## 2. Struktur Tabel & Skema
+## Tabel Domain
 
-### Tabel `users`
-Menyimpan data akun pengguna (pembeli sekaligus penjual di marketplace).
+### `users`
 
-| Kolom | Tipe | Nullable | Default | Keterangan |
-|---|---|---|---|---|
-| `id` | `BIGINT` | Tidak | Auto-increment | Primary Key |
-| `name` | `VARCHAR(255)` | Tidak | - | Nama pengguna |
-| `email` | `VARCHAR(255)` | Tidak | - | Email unik untuk login |
-| `whatsapp` | `VARCHAR(255)` | Ya | `NULL` | Nomor kontak WhatsApp (format: 628xxx) |
-| `location` | `VARCHAR(255)` | Ya | `NULL` | Kota asal / domisili penjual |
-| `email_verified_at` | `TIMESTAMP` | Ya | `NULL` | Waktu verifikasi email |
-| `password` | `VARCHAR(255)` | Tidak | - | Hash password (bawaan Laravel) |
-| `remember_token` | `VARCHAR(100)` | Ya | `NULL` | Token "ingat saya" |
-| `created_at` | `TIMESTAMP` | Ya | `NULL` | Waktu pendaftaran |
-| `updated_at` | `TIMESTAMP` | Ya | `NULL` | Waktu pembaruan profil |
+Menyimpan akun pembeli sekaligus penjual. `email` unik. `whatsapp` dan
+`location` nullable. Password disimpan sebagai hash melalui model User.
 
-- **Indeks**:
-  - `users_pkey` (`id` PRIMARY KEY)
-  - `users_email_unique` (`email` UNIQUE)
+### `categories`
 
----
+Menyimpan `name` dan `slug`; `slug` memiliki unique index.
 
-### Tabel `categories`
-Menyimpan daftar kategori minat barang bapak-bapak (misal: Perkakas, Kopi, Otomotif, Audio Vintage).
+### `listings`
 
-| Kolom | Tipe | Nullable | Default | Keterangan |
-|---|---|---|---|---|
-| `id` | `BIGINT` | Tidak | Auto-increment | Primary Key |
-| `name` | `VARCHAR(255)` | Tidak | - | Nama kategori barang |
-| `slug` | `VARCHAR(255)` | Tidak | - | Slug URL unik |
-| `created_at` | `TIMESTAMP` | Ya | `NULL` | Timestamps |
-| `updated_at` | `TIMESTAMP` | Ya | `NULL` | Timestamps |
+Kolom:
 
-- **Indeks**:
-  - `categories_pkey` (`id` PRIMARY KEY)
-  - `categories_slug_unique` (`slug` UNIQUE)
+- `user_id`: owner, foreign key ke `users`, cascade delete.
+- `category_id`: foreign key ke `categories`, cascade delete.
+- `name`, `description`, `location`: data listing.
+- `price`: unsigned integer.
+- `condition`: enum `NEW`, `LIKE_NEW`, `GOOD`, `FAIR`.
+- `status`: enum `AVAILABLE`, `SOLD`, default `AVAILABLE`.
+- `created_at`, `updated_at`: timestamps Laravel.
 
----
+### `listing_images`
 
-### Tabel `listings`
-Tabel utama katalog barang secondhand yang dipasarkan.
+Menyimpan path file atau URL eksternal, bukan binary gambar. `listing_id` cascade delete.
+`sort_order` unsigned small integer, default `0`.
 
-| Kolom | Tipe | Nullable | Default | Keterangan |
-|---|---|---|---|---|
-| `id` | `BIGINT` | Tidak | Auto-increment | Primary Key |
-| `user_id` | `BIGINT` | Tidak | - | Foreign Key ke `users.id` (ON DELETE CASCADE) |
-| `category_id` | `BIGINT` | Tidak | - | Foreign Key ke `categories.id` (ON DELETE CASCADE) |
-| `name` | `VARCHAR(255)` | Tidak | - | Nama / judul barang |
-| `description` | `TEXT` | Tidak | - | Deskripsi spesifikasi dan kondisi barang |
-| `price` | `INTEGER` | Tidak | - | Harga dalam Rupiah (unsigned) |
-| `condition` | `VARCHAR(255)` | Tidak | - | `NEW`, `LIKE_NEW`, `GOOD`, `FAIR` |
-| `status` | `VARCHAR(255)` | Tidak | `'AVAILABLE'` | `AVAILABLE`, `SOLD` |
-| `location` | `VARCHAR(255)` | Tidak | - | Lokasi barang (kota/wilayah) |
-| `created_at` | `TIMESTAMP` | Ya | `NULL` | Waktu listing dibuat |
-| `updated_at` | `TIMESTAMP` | Ya | `NULL` | Waktu listing diperbarui |
+### `sessions`
 
-- **Indeks & Strategi Performa**:
-  - `listings_pkey`: Primary key pada kolom `id`.
-  - `listings_category_id_index`: B-Tree index untuk filter barang berdasarkan kategori.
-  - `listings_condition_index`: B-Tree index untuk filter kondisi barang.
-  - `listings_status_index`: B-Tree index untuk filter status ketersediaan barang.
-  - `listings_created_at_index`: B-Tree index untuk pengurutan barang terbaru.
-  - `listings_status_created_at_index`: Compound index (`status, created_at`) untuk optimasi query feed katalog utama (`WHERE status = 'AVAILABLE' ORDER BY created_at DESC`).
+Dipakai oleh `SESSION_DRIVER=database` untuk session cookie Sanctum SPA.
+`user_id` nullable karena session dapat belum terasosiasi dengan user.
 
----
+## Index
 
-### Tabel `listing_images`
-Menyimpan foto galeri untuk setiap barang listing (1 listing dapat memiliki 1 s.d. banyak gambar).
+| Tabel | Index | Alasan |
+|---|---|---|
+| `users` | primary `id` | Identitas user |
+| `users` | unique `email` | Login dan uniqueness |
+| `categories` | primary `id` | Identitas kategori |
+| `categories` | unique `slug` | Slug tidak duplikat |
+| `listings` | primary `id` | Detail listing |
+| `listings` | `category_id` | Filter kategori |
+| `listings` | `condition` | Filter kondisi |
+| `listings` | `status` | Filter status |
+| `listings` | `created_at` | Urutan terbaru |
+| `listings` | `(status, created_at)` | Feed status tersedia + urutan |
+| `listing_images` | `(listing_id, sort_order)` | Galeri terurut |
+| `sessions` | primary `id` | Lookup session |
+| `sessions` | `user_id` | Lookup session user |
+| `sessions` | `last_activity` | Pembersihan session lama |
 
-| Kolom | Tipe | Nullable | Default | Keterangan |
-|---|---|---|---|---|
-| `id` | `BIGINT` | Tidak | Auto-increment | Primary Key |
-| `listing_id` | `BIGINT` | Tidak | - | Foreign Key ke `listings.id` (ON DELETE CASCADE) |
-| `path` | `VARCHAR(255)` | Tidak | - | Path file internal (`storage/...`) atau URL gambar eksternal |
-| `sort_order` | `SMALLINT` | Tidak | `0` | Urutan penayangan foto (0 = foto sampul) |
-| `created_at` | `TIMESTAMP` | Ya | `NULL` | Timestamps |
-| `updated_at` | `TIMESTAMP` | Ya | `NULL` | Timestamps |
+Search `ILIKE` pada `name` dan `description` digunakan controller, tetapi
+migration saat ini belum membuat index `pg_trgm`.
 
-- **Indeks**:
-  - `listing_images_pkey`: Primary key pada kolom `id`.
-  - `listing_images_listing_id_sort_order_index`: Compound index (`listing_id, sort_order`) untuk pengambilan galeri yang sudah berurutan secara efisien.
+## Relasi Eloquent
 
----
+| Model | Relasi | Target |
+|---|---|---|
+| `User` | `listings()` | `Listing` has many |
+| `Category` | `listings()` | `Listing` has many |
+| `Listing` | `user()` | `User` belongs to |
+| `Listing` | `category()` | `Category` belongs to |
+| `Listing` | `images()` | `ListingImage` has many, order `sort_order`, `id` |
+| `Listing` | `primaryImage()` | `ListingImage` has one, minimum `sort_order` dan `id` |
+| `ListingImage` | `listing()` | `Listing` belongs to |
 
-## 3. Pemetaan Relasi Eloquent
+## Seeder
 
-| Model Asal | Nama Relasi | Tipe Relasi | Model Target | Keterangan |
-|---|---|---|---|---|
-| `User` | `listings()` | `HasMany` | `Listing` | Mendapatkan semua barang yang dijual oleh user ini. |
-| `Category` | `listings()` | `HasMany` | `Listing` | Mendapatkan semua barang dalam kategori ini. |
-| `Listing` | `user()` | `BelongsTo` | `User` | Mendapatkan data penjual / pemilik barang. |
-| `Listing` | `category()` | `BelongsTo` | `Category` | Mendapatkan kategori barang. |
-| `Listing` | `images()` | `HasMany` | `ListingImage` | Galeri foto terurut berdasarkan `sort_order ASC, id ASC`. |
-| `Listing` | `primaryImage()` | `HasOne` | `ListingImage` | Mengambil foto utama / sampul (`ofMany` sort_order terendah) tanpa N+1. |
-| `ListingImage` | `listing()` | `BelongsTo` | `Listing` | Mendapatkan listing induk dari gambar. |
+`DatabaseSeeder` menjalankan `UserSeeder`, `CategorySeeder`, dan
+`ListingSeeder`. User utama:
 
----
-
-## 4. Seeder & Data Awal
-
-DatabaseSeeder mengeksekusi:
-1. `UserSeeder`:
-   - 1 akun utama demo:
-     - **Email**: `bambang@marketplace.test`
-     - **Password**: `password123`
-     - **WhatsApp**: `6281234567890`
-     - **Lokasi**: Jakarta Selatan
-   - 4 akun bapak-bapak lainnya dengan nomor WhatsApp dan domisili realistis (Bandung, Bekasi, Tangerang Selatan, Surabaya).
-2. `CategorySeeder`:
-   - 8 kategori khas bapak-bapak:
-     1. Perkakas & Pertukangan
-     2. Otomotif & Sparepart
-     3. Hobi Kopi & Barista
-     4. Audio & Sound Vintage
-     5. Alat Pancing & Outdoor
-     6. Elektronik & Gadget Lawas
-     7. Aquascape & Tanaman Hias
-     8. Jam Tangan & Koleksi Pria
-3. `ListingSeeder`:
-   - 30 barang dagangan khas dengan nama, deskripsi mendalam, harga variatif, kondisi (`NEW`, `LIKE_NEW`, `GOOD`, `FAIR`), dan status (`AVAILABLE`, `SOLD`).
-   - Setiap listing dilengkapi 1 s.d. 3 gambar placeholder resolusi tinggi dengan urutan `sort_order`.
+```text
+Email: bambang@marketplace.test
+Password: password123
+```

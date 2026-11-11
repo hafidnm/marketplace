@@ -1,213 +1,141 @@
-# Architecture Decision Records (ADR)
+# Architecture Decision Records
 
-Dokumen ini mencatat keputusan arsitektur yang diambil selama pengembangan Marketplace Bapak-Bapak beserta alasan dan konsekuensinya.
+Format setiap ADR: **Konteks**, **Keputusan**, **Alternatif**, dan
+**Konsekuensi**.
 
----
+## ADR-001: Laravel sebagai Backend API
 
-## ADR-001: Sanctum SPA Cookie Session
-
-**Status**: Diterima  
-**Tanggal**: 2026-11-10
+**Status:** Diterima
 
 ### Konteks
 
-Laravel Sanctum mendukung dua mode:
-1. **SPA Cookie-based** (`EnsureFrontendRequestsAreStateful`) — cocok untuk same-domain atau subdomain
-2. **API Token (Bearer)** — cocok untuk cross-origin atau mobile client
-
-Frontend berjalan di `localhost:5173`, backend di `localhost:8000` — berbeda port = cross-origin.
+Backend membutuhkan REST API, Form Request, Policy, Eloquent, Resource, dan
+integrasi Sanctum.
 
 ### Keputusan
 
-Gunakan Sanctum SPA authentication berbasis cookie/session. Frontend mengambil CSRF cookie terlebih dahulu, lalu Laravel membuat session web melalui guard `web`.
+Gunakan Laravel sebagai backend API.
 
-### Alasan
+### Alternatif
 
-- Session cookie tidak mengekspos credential ke JavaScript atau `localStorage`
-- Sanctum SPA adalah mekanisme resmi Laravel untuk frontend SPA first-party
-- `getCsrfCookie()` dipanggil sebelum register dan login untuk perlindungan CSRF
-
+Node.js dengan Express/NestJS atau framework PHP lain.
 
 ### Konsekuensi
 
-- Browser mengirim cookie session pada request API dengan `withCredentials`
-- CORS harus mengaktifkan `supports_credentials` dan origin frontend yang eksplisit
-- Session di-invalidate saat logout untuk mencegah reuse session
+Laravel menyediakan konvensi dan komponen yang langsung dipakai repository.
+Tim mengikuti lifecycle Laravel dan kebutuhan PHP/Composer.
 
----
+## ADR-002: PostgreSQL sebagai Database
 
-## ADR-002: PostgreSQL sebagai Satu-satunya Database (tanpa SQLite)
-
-**Status**: Diterima  
-**Tanggal**: 2026-11-10
+**Status:** Diterima
 
 ### Konteks
 
-Laravel default menggunakan SQLite untuk testing (lebih cepat setup). Namun, fitur `ILIKE` (case-insensitive search PostgreSQL) tidak tersedia di SQLite.
+Migration memakai foreign key, enum `condition`/`status`, index filter,
+dan controller memakai operator PostgreSQL `ILIKE`.
 
 ### Keputusan
 
-Gunakan **PostgreSQL** di semua environment (dev, test, production). `phpunit.xml` dikonfigurasi untuk tidak override `DB_CONNECTION`, sehingga test berjalan di PostgreSQL yang sama dengan development.
+Gunakan PostgreSQL untuk development dan deployment.
 
-### Alasan
+### Alternatif
 
-- `ILIKE` adalah fitur kunci untuk pencarian produk yang case-insensitive tanpa `LOWER()` workaround
-- Enum column (`condition`, `status`) lebih ekspresif di PostgreSQL
-- Konsistensi behavior dev vs production — tidak ada "works on my machine" issue
-- PostgreSQL 17.4 sudah terinstall lokal, tidak perlu Docker
+SQLite atau MySQL.
 
 ### Konsekuensi
 
-- Setup testing memerlukan PostgreSQL aktif — tidak bisa run test tanpa DB
-- Perlu buat database `marketplace_test` terpisah untuk testing (opsional)
-- CI/CD pipeline perlu setup PostgreSQL service (tidak SQLite)
+Behavior search lokal konsisten dengan target PostgreSQL. Environment harus
+menyediakan PostgreSQL dan ekstensi PHP `pdo_pgsql`.
 
----
+## ADR-003: Sanctum SPA Cookie Session
 
-## ADR-003: Laravel Storage Abstraction (Public Disk)
-
-**Status**: Diterima  
-**Tanggal**: 2026-11-10
+**Status:** Diterima
 
 ### Konteks
 
-Foto listing perlu disimpan dan diakses via URL publik. Pilihan:
-1. Store di `public/images/` langsung (tidak via Storage)
-2. Store via `Storage::disk('public')` → symlink `public/storage`
-3. Store di cloud (S3, Cloudinary)
+Frontend first-party berjalan pada origin terpisah dari API dan membutuhkan
+session yang bertahan saat refresh. Repository sempat menggunakan personal
+access token/Bearer dengan `createToken`, tetapi alur itu kemudian dikembalikan.
 
 ### Keputusan
 
-Gunakan **`Storage::disk('public')`** dengan symlink `public/storage → storage/app/public`.
+Gunakan Sanctum SPA cookie/session: `statefulApi`, CSRF cookie, web guard,
+session regenerate saat register/login, dan invalidate saat logout.
 
-### Alasan
+### Alternatif
 
-- Abstraksi Storage memudahkan migrasi ke S3 cukup ganti disk di `config/filesystems.php`
-- Path yang tersimpan di DB adalah relative path (`listings/xxx.jpg`) — tidak hardcode URL
-- `Storage::url($path)` otomatis resolve ke URL yang benar berdasarkan `APP_URL`
-- Symlink dibuat via `php artisan storage:link` (Windows: `cmd /c mklink /J`)
+Bearer token di header `Authorization`, disimpan di client; pendekatan ini
+sempat dicoba tetapi bukan mode yang dipakai sekarang.
 
 ### Konsekuensi
 
-- Perlu menjalankan `php artisan storage:link` setelah deploy baru
-- Di Windows, symlink memerlukan hak admin atau Developer Mode aktif
-- File foto tidak ikut version control (`.gitignore: storage/app/public/listings/`)
+Browser/Axios wajib mengirim credentials dan `X-XSRF-TOKEN`. CORS harus
+mengizinkan origin frontend secara eksplisit. Session tidak disimpan di
+`localStorage`, tetapi browser tetap bergantung pada cookie dan session store.
 
----
+## ADR-004: React SPA Terpisah
 
-## ADR-004: Form Request untuk Semua Validasi Input
-
-**Status**: Diterima  
-**Tanggal**: 2026-11-10
+**Status:** Diterima
 
 ### Konteks
 
-Validasi input API bisa dilakukan:
-1. Langsung di controller dengan `$request->validate()`
-2. Menggunakan dedicated **Form Request** class
+Frontend membutuhkan navigasi client-side, katalog interaktif, form upload, dan
+state auth di browser.
 
 ### Keputusan
 
-Semua endpoint validasi menggunakan **Form Request** class yang terpisah.
+Gunakan React + Vite + TypeScript sebagai aplikasi SPA terpisah dari Laravel API.
 
-### Alasan
+### Alternatif
 
-- Single Responsibility: controller hanya handle logic, Form Request handle validasi
-- Reusable: `UpdateListingRequest` bisa dipakai di banyak controller
-- Testable: validasi bisa ditest terpisah dari controller
-- Konsisten dengan spesifikasi CLAUDE.md
+Blade/server-rendered UI dalam project Laravel yang sama.
 
 ### Konsekuensi
 
-- File count lebih banyak (6 Form Request class)
-- Tim harus tahu konvensi Form Request untuk onboarding
+Frontend dan backend memiliki proses development serta environment URL sendiri.
+CORS, Sanctum stateful domain, dan build frontend perlu dikonfigurasi konsisten.
 
----
+## ADR-005: Link WhatsApp `wa.me`
 
-## ADR-005: ListingPolicy untuk Ownership Check
-
-**Status**: Diterima  
-**Tanggal**: 2026-11-10
+**Status:** Diterima
 
 ### Konteks
 
-Endpoint edit, delete, dan updateStatus listing hanya boleh diakses oleh **pemilik** listing. Implementasi bisa:
-1. Manual check `if ($listing->user_id !== auth()->id()) abort(403)`
-2. Gate/Policy via `$this->authorize()`
+Fitur wajib hanya memerlukan kontak penjual dengan pesan awal otomatis.
 
 ### Keputusan
 
-Gunakan **`ListingPolicy`** dengan `$this->authorize('update', $listing)` di controller.
+Frontend membuat link WhatsApp melalui `wa.me`; isi chat tidak disimpan di API.
 
-### Alasan
+### Alternatif
 
-- Separation of concerns: authorization logic terpusat di Policy
-- Testable secara terpisah via `actingAs()->can()`
-- Laravel best practice — konsisten dengan spesifikasi
-- Error response otomatis `403 Forbidden` via exception handler
+Membangun chat internal, menyimpan thread, dan mengelola delivery status.
 
 ### Konsekuensi
 
-- Perlu register policy di `AuthServiceProvider` (atau auto-discovery)
-- Tambahan file: `ListingPolicy.php`
+Implementasi sederhana dan tidak membutuhkan messaging backend. Percakapan,
+delivery, dan availability tetap bergantung pada WhatsApp.
 
----
+## ADR-006: Upload Lokal sebagai MVP
 
-## ADR-006: SellerResource yang Minimal (Privacy-First)
-
-**Status**: Diterima  
-**Tanggal**: 2026-11-10
+**Status:** Diterima
 
 ### Konteks
 
-Detail listing perlu menyertakan info penjual. Data apa yang boleh di-expose?
-
-- `UserResource` untuk `/api/me` — expose semua termasuk email
-- Info penjual di halaman publik listing detail — email sensitif
+Controller saat ini menerima multipart upload, memvalidasi 1 sampai 5 gambar,
+lalu menyimpan file dengan `Storage::disk('public')`.
 
 ### Keputusan
 
-Buat **`SellerResource`** terpisah yang hanya berisi: `id`, `name`, `whatsapp`, `location`. Email dan password **tidak pernah** ada di response publik.
+Gunakan local public disk untuk MVP dan simpan relative path pada
+`listing_images.path`. URL response dibuat oleh `ListingResource`.
 
-### Alasan
+### Alternatif
 
-- Privacy: email penjual tidak perlu diketahui pembeli — WhatsApp cukup
-- Mencegah email harvesting dari API publik
-- Sesuai spesifikasi: "Info penjual cukup name, whatsapp, location (jangan expose email/password)"
-
-### Konsekuensi
-
-- Dua Resource class untuk User: `UserResource` (private) dan `SellerResource` (public)
-- Developer harus ingat untuk pakai `SellerResource` (bukan `UserResource`) di `ListingResource`
-
----
-
-## ADR-007: Tailwind CSS v4 (tanpa tailwind.config.js)
-
-**Status**: Diterima  
-**Tanggal**: 2026-11-10
-
-### Konteks
-
-Tailwind v4 mengubah cara konfigurasi — tidak lagi menggunakan `tailwind.config.js`, melainkan via plugin Vite dan CSS `@import`.
-
-### Keputusan
-
-Gunakan **Tailwind CSS v4** dengan `@tailwindcss/vite` plugin. Konfigurasi di `vite.config.ts`:
-```ts
-import tailwindcss from '@tailwindcss/vite';
-// plugins: [react(), tailwindcss()]
-```
-Dan di CSS: `@import "tailwindcss";`
-
-### Alasan
-
-- Tailwind v4 lebih cepat (Oxide engine)
-- Zero config untuk use-case standar
-- Vite native integration — tidak perlu PostCSS config terpisah
+Presigned upload ke S3-compatible object storage atau service image khusus.
 
 ### Konsekuensi
 
-- **Breaking**: `tailwind.config.js` tidak digunakan — jangan buat, akan diabaikan
-- Custom theme harus didefinisikan via CSS variables di `index.css` (bukan `theme.extend`)
-- Beberapa plugin v3 mungkin tidak kompatibel dengan v4
+Setup lokal sederhana dan behavior dapat diuji tanpa cloud. Untuk scale-out,
+storage lokal perlu diganti atau disinkronkan ke object storage; resize
+thumbnail dan CDN belum menjadi implementasi saat ini.
