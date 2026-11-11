@@ -20,7 +20,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->statefulApi();
+        // Stateful API (CSRF cookie-based) is DISABLED.
+        // This app uses Sanctum Bearer Token (stateless), so CSRF verification
+        // on /api/* routes is not needed and would cause HTTP 419 errors.
+        // $middleware->statefulApi();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (ValidationException $e, Request $request) {
