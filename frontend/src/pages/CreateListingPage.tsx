@@ -180,7 +180,7 @@ export const CreateListingPage: React.FC = () => {
           <span>Kembali ke LaPak.</span>
         </Link>
         <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-          Pasang Barang Bekas
+          Jual Barang
         </h1>
         <p className="text-sm text-slate-500 mt-1">
           Lengkapi data barang dagangan Anda secara jujur dan transparan untuk sesama bapak.
